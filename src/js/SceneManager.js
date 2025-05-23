@@ -62,17 +62,36 @@ export default class SceneManager {
     }
 
     setupGround() {
-        // Create a large plane to act as the ground
-        const groundGeometry = new THREE.PlaneGeometry(1000, 1000); // (TODO: Make randomly generated terrain)
-        const groundMaterial = new THREE.MeshStandardMaterial({
+        // Generate noise for terrain
+        const segmentSize = 100;
+        const segmentsX = 10;
+        const segmentsY = 10;
+        const noiseScale = 60;
+
+        // Create a plane geometry for the ground
+        const sizeX = segmentSize * segmentsX;
+        const sizeY = segmentSize * segmentsY;
+        const geometry = new THREE.PlaneGeometry(sizeX, sizeY, segmentsX, segmentsY);
+        geometry.rotateX(-Math.PI / 2);
+        geometry.translate(0, -0.01, 0);
+        // Create a material for the ground
+        const material = new THREE.MeshStandardMaterial({
             color: 0x556B2F,
+            wireframe: true,
             roughness: 0.9,
             metalness: 0.1
         });
-        this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        this.ground.rotation.x = -Math.PI / 2;
-        this.ground.position.y = -0.01; // Slightly below the camera to avoid z-fighting
+        // Create a mesh for the ground
+        this.ground = new THREE.Mesh(geometry, material);
         this.ground.receiveShadow = true;
+        // Generate noise for the terrain
+        for (let z = 0; z <= segmentsX + 1; z++) {
+            for (let x = 0; x <= segmentsY + 1; x++) {
+                const index = 3 * (z * (segmentsX + 1) + x);
+                console.log(z, x, index);
+                geometry.attributes.position.array[index + 1] = Math.random() * noiseScale - noiseScale / 4;
+            }
+        }
         // Add the ground to the scene
         this.scene.add(this.ground);
     }
