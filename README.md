@@ -1,5 +1,7 @@
-# helicopter-extension
+# Helicopter Extension
+A Chrome extension with a Three.js helicopter flight simulator popup.
 
+## Setup
 To install dependencies:
 
 ```bash
@@ -34,4 +36,4 @@ bun run build
 
 
 ## Attribution 
-Free use icon images by [Andre Klimke](https://unsplash.com/@andre_klimke?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash)</a> on [Unsplash](https://unsplash.com/photos/black-helicopter-flying-over-brown-field-during-daytime--IhgLixx7Z8?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash) under the [Unsplash License](https://unsplash.com/license)
+Free use icon images by [Andre Klimke](https://unsplash.com/@andre_klimke?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash)</a> on [Unsplash](https://unsplash.com/photos/black-helicopter-flying-over-brown-field-during-daytime--IhgLixx7Z8?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash) under the [Unsplash License](https://unsplash.com/license).
