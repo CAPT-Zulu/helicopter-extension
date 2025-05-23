@@ -6,10 +6,10 @@ To install dependencies:
 bun install
 ```
 
-To run:
+To Build:
 
 ```bash
-bun run index.ts
+bun run build
 ```
 
 ## TODO:
