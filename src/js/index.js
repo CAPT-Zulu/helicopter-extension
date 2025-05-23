@@ -52,3 +52,5 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+
+// TODO: reimplement proper disposal
