@@ -12,7 +12,7 @@ To run:
 bun run index.ts
 ```
 
-TODO:
+## TODO:
 - Prevent angle changes when camera is touching the ground or angle relative to ground
 - Implement random terrain generation
 - Implement basic npc scatter spawn and spawn over time
@@ -27,7 +27,11 @@ TODO:
 - Score?
 - Give npc's and weapon's: models, effects, sounds, etc
 
-Future:
+## Future:
 - Capture zones
 - Friendly ai
 - More unique npc variations and weapon variations
+
+
+## Attribution 
+Free use icon images by [Andre Klimke](https://unsplash.com/@andre_klimke?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash)</a> on [Unsplash](https://unsplash.com/photos/black-helicopter-flying-over-brown-field-during-daytime--IhgLixx7Z8?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash) under the [Unsplash License](https://unsplash.com/license)
