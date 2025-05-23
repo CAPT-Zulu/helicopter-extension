@@ -54,7 +54,7 @@ export default class SceneManager {
     buildCamera({ width, height }) {
         // Create a perspective camera
         const aspectRatio = width / height;
-        const fov = 60;
+        const fov = 90;
         const nearPlane = 0.1;
         const farPlane = 2000;
         const camera = new THREE.PerspectiveCamera(fov, aspectRatio, nearPlane, farPlane);
