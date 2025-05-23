@@ -1,45 +1,67 @@
-// Perlin noise functions based on "https://github.com/joeiddon/perlin"
-function rand_vect() {
-    let theta = Math.random() * Math.PI * 2;
-    return {x: Math.cos(theta), y: Math.sin(theta)};
-}
-function dot_product_grid(x, y, xi, yi) {
-    let g = rand_vect();
-    let d = { x: x - xi, y: y - yi };
-    return g.x * d.x + g.y * d.y;
-}
-function smoothstep(x) {
-    return 6*x**5 - 15*x**4 + 10*x**3;
-}
-function interp(x, a, b) {
-    return a + smoothstep(x) * (b - a);
-}
-function perlin2D(x, y) {
-    let xi = Math.floor(x);
-    let yi = Math.floor(y);
-    
-    let tl = dot_product_grid(x, y, xi, yi);
-    let tr = dot_product_grid(x, y, xi + 1, yi);
-    let bl = dot_product_grid(x, y, xi, yi + 1);
-    let br = dot_product_grid(x, y, xi + 1, yi + 1);
-    let xt = interp(x - xi, tl, tr);
-    let xb = interp(x - xi, bl, br);
-    let v = interp(y - yi, xt, xb);
-    return v;
-}
+// Diamond-Square Algorithm based from https://github.com/IceCreamYou/THREE.Terrain
+function generateDiamondSquare(map, segmentNumber, minHeight, maxHeight) {
+    // Set the segment length to the smallest power of 2 that is greater than
+    // the number of vertices in either dimension of the plane
+    // var segments = THREE.Math.ceilPowerOfTwo(segmentNumber + 1);
+    var segments = Math.pow(2, Math.ceil(Math.log2(segmentNumber + 1)));
 
-// Perlin noise generator
-function generatePerlinNoise(width, height, scale) {
-    const noise = [];
-    for (let y = 0; y < height; y++) {
-        noise[y] = [];
-        for (let x = 0; x < width; x++) {
-            const nx = x / scale;
-            const ny = y / scale;
-            noise[y][x] = perlin2D(nx, ny);
+    // Initialize heightMap
+    var size = segments + 1,
+        heightMap = [],
+        smoothing = (maxHeight - minHeight),
+        i,
+        j,
+        xl = segmentNumber + 1,
+        yl = segmentNumber + 1;
+    for (i = 0; i <= segments; i++) {
+        heightMap[i] = new Float64Array(segments + 1);
+    }
+
+    // Generate heightMap
+    for (var l = segments; l >= 2; l /= 2) {
+        var half = Math.round(l * 0.5),
+            whole = Math.round(l),
+            x,
+            y,
+            avg,
+            d,
+            e;
+        smoothing /= 2;
+        // Square
+        for (x = 0; x < segments; x += whole) {
+            for (y = 0; y < segments; y += whole) {
+                d = Math.random() * smoothing * 2 - smoothing;
+                avg = heightMap[x][y] +
+                    heightMap[x + whole][y] +
+                    heightMap[x][y + whole] +
+                    heightMap[x + whole][y + whole];
+                avg *= 0.25;
+                heightMap[x + half][y + half] = avg + d;
+            }
+        }
+        // Diamond
+        for (x = 0; x < segments; x += half) {
+            for (y = (x + half) % l; y < segments; y += l) {
+                d = Math.random() * smoothing * 2 - smoothing;
+                avg = heightMap[(x - half + size) % size][y] +
+                    heightMap[(x + half) % size][y] +
+                    heightMap[x][(y + half) % size] +
+                    heightMap[x][(y - half + size) % size];
+                avg *= 0.25;
+                avg += d;
+                heightMap[x][y] = avg;
+                if (x === 0) heightMap[segments][y] = avg;
+                if (y === 0) heightMap[x][segments] = avg;
+            }
         }
     }
-    return noise;
+
+    // Apply heightMap
+    for (i = 0; i < xl; i++) {
+        for (j = 0; j < yl; j++) {
+            map[j * xl + i] += heightMap[i][j];
+        }
+    }
 }
 
-export { perlin2D };
+export { generateDiamondSquare };

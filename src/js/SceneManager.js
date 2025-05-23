@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { generateDiamondSquare } from './utils.js';
 
 export default class SceneManager {
     constructor(canvas) {
@@ -17,7 +18,7 @@ export default class SceneManager {
         // Set up ground, lights, and grid
         this.setupGround();
         this.setupLights();
-        this.setupGrid();
+        // this.setupGrid();
 
         // Set up resize observer to handle window resizing
         this.resizeObserver = new ResizeObserver(entries => {
@@ -63,35 +64,37 @@ export default class SceneManager {
 
     setupGround() {
         // Generate noise for terrain
-        const segmentSize = 100;
-        const segmentsX = 10;
-        const segmentsY = 10;
-        const noiseScale = 60;
+        const segmentSize = 1024;
+        const segments = 63;
 
         // Create a plane geometry for the ground
-        const sizeX = segmentSize * segmentsX;
-        const sizeY = segmentSize * segmentsY;
-        const geometry = new THREE.PlaneGeometry(sizeX, sizeY, segmentsX, segmentsY);
-        geometry.rotateX(-Math.PI / 2);
-        geometry.translate(0, -0.01, 0);
-        // Create a material for the ground
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x556B2F,
-            wireframe: true,
-            roughness: 0.9,
-            metalness: 0.1
-        });
-        // Create a mesh for the ground
-        this.ground = new THREE.Mesh(geometry, material);
+        this.ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(segmentSize, segmentSize, segments, segments),
+            new THREE.MeshPhongMaterial({ color: 0x556B2F, specular: 0x444455, shininess: 10 })
+        )
+        this.ground.rotateX(-Math.PI / 2);
+        this.ground.translateY(-0.01);
         this.ground.receiveShadow = true;
-        // Generate noise for the terrain
-        for (let z = 0; z <= segmentsX + 1; z++) {
-            for (let x = 0; x <= segmentsY + 1; x++) {
-                const index = 3 * (z * (segmentsX + 1) + x);
-                console.log(z, x, index);
-                geometry.attributes.position.array[index + 1] = Math.random() * noiseScale - noiseScale / 4;
-            }
+
+        // Generate a height map using the diamond-square algorithm
+        let vertices = this.ground.geometry.attributes.position.array;
+        var target = new Float32Array(vertices.length / 3);
+        for (let i = 0, len = target.length; i < len; i++) {
+            target[i] = vertices[i * 3 + 2];
         }
+        generateDiamondSquare(target, segments, -128, 128);
+        for (let i = 0, l = Math.min(vertices.length / 3, target.length); i < l; i++) {
+            vertices[i * 3 + 2] = target[i];
+        }
+        // Normalize the height map?
+        // Apply texture to the ground
+        // const textureLoader = new THREE.TextureLoader();
+        // const texture = textureLoader.load('grass.jpg');
+        // texture.wrapS = THREE.RepeatWrapping;
+        // texture.wrapT = THREE.RepeatWrapping;
+        // texture.repeat.set(10, 10);
+        // this.ground.material.map = texture;
+        // this.ground.material.map.needsUpdate = true;
         // Add the ground to the scene
         this.scene.add(this.ground);
     }
