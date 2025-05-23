@@ -52,17 +52,3 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
-
-// Clean up on window unload (Needed?)
-window.addEventListener('unload', () => {
-    console.log("Window closing, disposing resources.");
-    if (helicopterController) {
-        helicopterController.dispose();
-        helicopterController = null;
-    }
-    if (sceneManager) {
-        sceneManager.dispose();
-        sceneManager = null;
-    }
-    clock = null;
-});
