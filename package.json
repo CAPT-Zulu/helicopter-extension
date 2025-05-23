@@ -1,0 +1,22 @@
+{
+  "name": "helicopter-extension",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run build --watch",
+    "build": "bun run clean && bun run build:js && bun run copy:assets",
+    "build:js": "bun build ./src/js/popup.js --outdir ./dist/js --minify --target=browser",
+    "copy:assets": "cp ./src/popup.html ./dist/popup.html && cp ./src/popup.css ./dist/popup.css && cp ./manifest.json ./dist/manifest.json && cp -r ./src/icons ./dist/icons",
+    "clean": "rm -rf ./dist",
+    "package": "bun run build && cd dist && zip -r ../helicopter-extension.zip . -x \"*.DS_Store\" && cd .."
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/chrome": "^0.0.323",
+    "@types/three": "^0.176.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
