@@ -15,7 +15,7 @@
     "dev": "bun run build --watch",
     "build": "bun run clean && bun run build:js && bun run copy:assets",
     "build:js": "bun build ./src/js/index.js --outdir ./dist/js --minify --target=browser && bun build ./src/js/background.js --outdir ./dist/js --minify --target=browser",
-    "copy:assets": "cpy --cwd=src index.html index.css manifest.json ../../dist && cpy ./src/icons/* ./dist/icons --flat",
+    "copy:assets": "cpy --cwd=src index.html index.css manifest.json ../../dist && cpy ./src/icons/* ./dist/icons --flat && cpy ./src/textures/* ./dist/textures --flat",
     "clean": "rimraf ./dist",
     "package": "bun run build && cd dist && zip -r ../helicopter-extension.zip . -x \"*.DS_Store\" && cd .."
   },
