@@ -31,6 +31,7 @@ bun run build
 - Capture zones
 - Friendly ai
 - More unique npc variations and weapon variations
+- Escape menu for world configurations like ai, movement, controls, world, structures, weapons, and the ability to load and save custom configurations
 - More complex terrain generation or infinite?
 
 
