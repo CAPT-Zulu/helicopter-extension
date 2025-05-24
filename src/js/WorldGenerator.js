@@ -9,16 +9,43 @@ export default class WorldGenerator {
 
         // Setup world / environment
         this.setupTerrain();
-        this.setupLights();
+        // this.setupLights();
+        this.setupEnvironment();
+    }
+
+    setupEnvironment() {
+        var skyTexture = new THREE.TextureLoader().load('sky.jpg');
+        skyTexture.minFilter = THREE.LinearFilter; // Texture is not a power-of-two size; use smoother interpolation.
+        var skyDome = new THREE.Mesh(
+            new THREE.SphereGeometry(8192, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.5),
+            new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, fog: false })
+        );
+        skyDome.position.y = -99;
+        this.scene.add(skyDome);
+
+        var water = new THREE.Mesh(
+            new THREE.PlaneGeometry(16384 + 1024, 16384 + 1024, 16, 16),
+            new THREE.MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.6 })
+        );
+        water.position.y = -99;
+        water.rotation.x = -0.5 * Math.PI;
+        this.scene.add(water);
+
+        var skyLight = new THREE.DirectionalLight(0xe8bdb0, 1.5);
+        skyLight.position.set(2950, 2625, -160); // Sun on the sky texture
+        this.scene.add(skyLight);
+        var light = new THREE.DirectionalLight(0xc3eaff, 0.75);
+        light.position.set(-1, -0.5, -1);
+        this.scene.add(light);
     }
 
     setupTerrain() {
         // Generate noise for terrain
-        const segmentSize = 512;
-        const segments = 128;
+        const segmentSize = 1024;
+        const segments = 100;
 
-        const minHeight = -64;
-        const maxHeight = 64;
+        const minHeight = -100;
+        const maxHeight = 100;
 
         // Create terrain material
         const groundMaterial = new THREE.MeshStandardMaterial({
@@ -37,6 +64,7 @@ export default class WorldGenerator {
             ySize: segmentSize,
             xSegments: segments,
             ySegments: segments,
+            edgeType: 'Radial',
             easing: Terrain.Linear,
             frequency: 2.5,
         });
@@ -53,10 +81,10 @@ export default class WorldGenerator {
 
         // Create textures for terrain as just base color
         const textureLoader = new THREE.TextureLoader();
-        const t1 = textureLoader.load('sand1.jpg');
-        const t2 = textureLoader.load('grass1.jpg');
-        const t3 = textureLoader.load('stone1.jpg');
-        const t4 = textureLoader.load('snow1.jpg');
+        const t1 = textureLoader.load('sand.jpg');
+        const t2 = textureLoader.load('grass.jpg');
+        const t3 = textureLoader.load('stone.jpg');
+        const t4 = textureLoader.load('snow.jpg');
 
         let material = Terrain.generateBlendedMaterial([
             // The first texture is the base; other textures are blended in on top.
