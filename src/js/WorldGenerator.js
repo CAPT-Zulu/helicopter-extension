@@ -9,20 +9,11 @@ export default class WorldGenerator {
 
         // Setup world / environment
         this.setupTerrain();
-        // this.setupLights();
+        this.setupLights();
         this.setupEnvironment();
     }
 
     setupEnvironment() {
-        var skyTexture = new THREE.TextureLoader().load('sky.jpg');
-        skyTexture.minFilter = THREE.LinearFilter; // Texture is not a power-of-two size; use smoother interpolation.
-        var skyDome = new THREE.Mesh(
-            new THREE.SphereGeometry(8192, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.5),
-            new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, fog: false })
-        );
-        skyDome.position.y = -99;
-        this.scene.add(skyDome);
-
         var water = new THREE.Mesh(
             new THREE.PlaneGeometry(16384 + 1024, 16384 + 1024, 16, 16),
             new THREE.MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.6 })
@@ -30,46 +21,53 @@ export default class WorldGenerator {
         water.position.y = -99;
         water.rotation.x = -0.5 * Math.PI;
         this.scene.add(water);
-
-        var skyLight = new THREE.DirectionalLight(0xe8bdb0, 1.5);
-        skyLight.position.set(2950, 2625, -160); // Sun on the sky texture
-        this.scene.add(skyLight);
-        var light = new THREE.DirectionalLight(0xc3eaff, 0.75);
-        light.position.set(-1, -0.5, -1);
-        this.scene.add(light);
     }
 
     setupTerrain() {
-        // Generate noise for terrain
+        // Variables for terrain generation
         const segmentSize = 1024;
-        const segments = 100;
-
+        const segments = 63;
         const minHeight = -100;
         const maxHeight = 100;
+        const steps = 1;
 
-        // Create terrain material
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            metalness: 0.0,
-            roughness: 0.5,
-            vertexColors: true
-        });
+        // Load textures
+        const textureLoader = new THREE.TextureLoader();
+        const t1 = textureLoader.load('textures/sand.jpg');
+        const t2 = textureLoader.load('textures/grass.jpg');
+        const t3 = textureLoader.load('textures/stone.jpg');
+        const t4 = textureLoader.load('textures/snow.jpg');
+
+        // Generate blended material
+        const blendedMaterial = Terrain.generateBlendedMaterial([
+            { texture: t1 },
+            { texture: t2, levels: [-80, -35, 20, 50] },
+            { texture: t3, levels: [20, 50, 60, 85] },
+            { texture: t4, glsl: '1.0 - smoothstep(65.0 + smoothstep(-256.0, 256.0, vPosition.x) * 10.0, 80.0, vPosition.z)' },
+            { texture: t3, glsl: 'slope > 0.7853981633974483 ? 0.2 : 1.0 - smoothstep(0.47123889803846897, 0.7853981633974483, slope) + 0.2' },
+        ]);
 
         // Generate terrain using THREE.Terrain
         const terrainObject = new Terrain({
-            heightmap: Terrain.Hill,
-            material: groundMaterial,
+            heightmap: Terrain.PerlinDiamond,
+            material: blendedMaterial,
             maxHeight: maxHeight,
             minHeight: minHeight,
+            steps: steps,
+            stretch: true,
+            turbulent: false,
             xSize: segmentSize,
             ySize: segmentSize,
             xSegments: segments,
             ySegments: segments,
-            edgeType: 'Radial',
+            edgeType: 'Box',
+            edgeDirection: 'Normal',
+            edgeDistance: 256,
+            edgeCurve: Terrain.EaseInOut,
             easing: Terrain.Linear,
             frequency: 2.5,
         });
         this.ground = terrainObject;
-        console.log("Terrain object:", terrainObject);
 
         // Check if the terrain object has a valid mesh
         const groundMesh = terrainObject.mesh;
@@ -79,70 +77,9 @@ export default class WorldGenerator {
         }
         const groundGeometry = groundMesh.geometry;
 
-        // Create textures for terrain as just base color
-        const textureLoader = new THREE.TextureLoader();
-        const t1 = textureLoader.load('sand.jpg');
-        const t2 = textureLoader.load('grass.jpg');
-        const t3 = textureLoader.load('stone.jpg');
-        const t4 = textureLoader.load('snow.jpg');
-
-        let material = Terrain.generateBlendedMaterial([
-            // The first texture is the base; other textures are blended in on top.
-            { texture: t1 },
-            // Start blending in at height -80; opaque between -35 and 20; blend out by 50
-            { texture: t2, levels: [-80, -35, 20, 50] },
-            { texture: t3, levels: [20, 50, 60, 85] },
-            // How quickly this texture is blended in depends on its x-position.
-            { texture: t4, glsl: '1.0 - smoothstep(65.0 + smoothstep(-256.0, 256.0, vPosition.x) * 10.0, 80.0, vPosition.z)' },
-            // Use this texture if the slope is between 27 and 45 degrees
-            { texture: t3, glsl: 'slope > 0.7853981633974483 ? 0.2 : 1.0 - smoothstep(0.47123889803846897, 0.7853981633974483, slope) + 0.2' },
-
-        ]);
-
-        // Set the material to the terrain object
-        terrainObject.material = material;
-        // Set the material to the mesh
-        groundMesh.material = material;
-
-        // Update the mesh with the new material
-
-
-        // Apply transformations and properties
-        // this.ground.translateY(-0.01); // Small offset if needed
-
-        // Set shadow properties on the mesh itself
+        // Update properties of the ground mesh
         groundMesh.receiveShadow = true;
         groundMesh.castShadow = true;
-
-        // Vertex colors are applied based on height (Y-coordinate)
-        // console.log(groundGeometry)
-        // const vertices = groundGeometry.attributes.position.array;
-        // // const vertices = groundGeometry.vertices;
-        // const colors = [];
-        // const colorSand = new THREE.Color(0xc2b280);
-        // const colorGrass = new THREE.Color(0x556B2F);
-        // const colorRock = new THREE.Color(0x808080);
-        // const colorSnow = new THREE.Color(0xffffff);
-
-        // const numVertices = vertices.length / 3;
-        // for (let i = 0; i < numVertices; i++) {
-        //     const height = vertices[i * 3 + 1]; 
-        //     let r, g, b;
-        //     if (height > 80) { // Snow
-        //         r = colorSnow.r; g = colorSnow.g; b = colorSnow.b;
-        //     } else if (height > 40) { // Rock
-        //         r = colorRock.r; g = colorRock.g; b = colorRock.b;
-        //     } else if (height > 0) { // Grass
-        //         r = colorGrass.r; g = colorGrass.g; b = colorGrass.b;
-        //     } else { // Sand (or lower terrain)
-        //         r = colorSand.r; g = colorSand.g; b = colorSand.b;
-        //     }
-        //     colors.push(r, g, b);
-        // }
-        // groundGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        // groundGeometry.attributes.color.needsUpdate = true;
-
-        // Normals should be recomputed for correct lighting with new vertex positions and colors
         groundGeometry.computeVertexNormals();
 
         // Add ground to the scene
