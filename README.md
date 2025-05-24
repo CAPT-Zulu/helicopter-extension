@@ -15,8 +15,6 @@ bun run build
 ```
 
 ## TODO:
-- Prevent angle changes when camera is touching the ground or angle relative to ground
-- Implement random terrain generation
 - Implement basic npc scatter spawn and spawn over time
 - Give npc basic ability to move around
 - Give npc aiming support with predictions
@@ -33,6 +31,7 @@ bun run build
 - Capture zones
 - Friendly ai
 - More unique npc variations and weapon variations
+- More complex terrain generation or infinite?
 
 
 ## Attribution 
