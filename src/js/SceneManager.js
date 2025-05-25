@@ -62,9 +62,16 @@ export default class SceneManager {
         return this.camera;
     }
 
-    getGroundYPosition() {
-        // Return the Y position of the ground (TEMP)
+    getGroundYPosition(rayHeight) {
+        // Return the Y position of the ground
+        if (this.worldGenerator) {
+            return this.worldGenerator.getTerrainHeightAt(worldX, worldZ, rayHeight);
+        }
         return 0;
+    }
+
+    getWorldGenerator() {
+        return this.worldGenerator;
     }
 
     update() {

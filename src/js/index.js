@@ -20,7 +20,7 @@ function init() {
     helicopterController = new HelicopterController(
         sceneManager.getCamera(),
         canvas,
-        sceneManager.getGroundYPosition()
+        sceneManager.getWorldGenerator()
     );
 
     // Set up Weapon and Enemy AI systems (TODO)
@@ -34,7 +34,7 @@ function init() {
 function animate() {
     // Get animation frame and delta time
     const rafID = requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta();
+    const deltaTime = Math.min(clock.getDelta(), 0.1);
 
     // Try to update systems
     try {

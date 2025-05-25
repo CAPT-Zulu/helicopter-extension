@@ -6,6 +6,7 @@ export default class WorldGenerator {
         // Set scene
         this.scene = scene;
         this.ground = null;
+        this.raycaster = new THREE.Raycaster();
 
         // Setup world / environment
         this.setupTerrain();
@@ -104,5 +105,44 @@ export default class WorldGenerator {
         directionalLight.shadow.normalBias = 0.05;
         directionalLight.shadow.bias = 0;
         this.scene.add(directionalLight);
+    }
+
+    getTerrainMesh() {
+        // Return the terrain mesh if it exists
+        return this.ground ? this.ground.mesh : null;
+    }
+
+    getTerrainHeightAt(worldX, worldZ, rayHeight) {
+        const terrainMesh = this.getTerrainMesh();
+        if (!terrainMesh) {
+            return -100; // Fallback if no terrain
+        }
+
+        // Ray shoots downwards from a point high above the potential terrain point
+        const rayOrigin = new THREE.Vector3(worldX, rayHeight, worldZ); // Start well above max height
+        const rayDirection = new THREE.Vector3(0, -1, 0);
+        this.raycaster.set(rayOrigin, rayDirection);
+        this.raycaster.near = 0;
+        this.raycaster.far = 100;
+        const intersects = this.raycaster.intersectObject(terrainMesh, false);
+
+        if (intersects.length > 0) {
+            return intersects[0].point.y;
+        }
+        return -100; // If outside terrain or no hit
+    }
+
+    getWorldBounds() {
+        // Terrain is centered at (0,0)
+        const halfX = (1024 || 1024) / 2;
+        const halfZ = (1024 || 1024) / 2;
+        return {
+            minX: -halfX,
+            maxX: halfX,
+            minZ: -halfZ,
+            maxZ: halfZ,
+            minY: 100,
+            maxY: 100
+        };
     }
 }
