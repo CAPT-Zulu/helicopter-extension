@@ -20,6 +20,7 @@ function init() {
     helicopterController = new HelicopterController(
         sceneManager.getCamera(),
         canvas,
+        sceneManager.getScene(),
         sceneManager.getWorldGenerator()
     );
 

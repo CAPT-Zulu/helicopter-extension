@@ -1,17 +1,25 @@
 import * as THREE from 'three';
 import { Terrain } from './THREE.Terrain.mjs';
+import { Octree } from 'three/addons/math/Octree.js';
+import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 
 export default class WorldGenerator {
     constructor(scene) {
         // Set scene
         this.scene = scene;
+        this.worldOctree = new Octree();
         this.ground = null;
-        this.raycaster = new THREE.Raycaster();
+        this.spawn = null;
 
         // Setup world / environment
         this.setupTerrain();
         this.setupLights();
         this.setupEnvironment();
+        this.setupSpawn();
+
+        const octreeHelper = new OctreeHelper(this.worldOctree);
+        octreeHelper.visible = true;
+        this.scene.add(octreeHelper);
     }
 
     setupEnvironment() {
@@ -85,6 +93,20 @@ export default class WorldGenerator {
 
         // Add ground to the scene
         this.scene.add(this.ground.scene);
+        this.worldOctree.fromGraphNode(this.ground.scene);
+    }
+
+    setupSpawn() {
+        // Cylinder from -100 to (terrain height at 0,0) + 50
+        const spawnHeight = this.getTerrainHeightAt(0, 0);
+        const spawnGeometry = new THREE.CylinderGeometry(20, 20, 30, 12);
+        const spawnMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 }); // Grey
+        this.spawn = new THREE.Mesh(spawnGeometry, spawnMaterial);
+        this.spawn.position.set(0, spawnHeight + 10); // Centered
+        this.spawn.castShadow = true;
+        this.spawn.receiveShadow = true;
+        this.scene.add(this.spawn);
+        this.worldOctree.fromGraphNode(this.spawn);
     }
 
     setupLights() {
@@ -112,24 +134,27 @@ export default class WorldGenerator {
         return this.ground ? this.ground.mesh : null;
     }
 
-    getTerrainHeightAt(worldX, worldZ, rayHeight) {
+    getTerrainHeightAt(worldX, worldZ) {
         const terrainMesh = this.getTerrainMesh();
-        if (!terrainMesh) {
-            return -100; // Fallback if no terrain
-        }
+        if (!terrainMesh || !terrainMesh.geometry) return -100;
 
-        // Ray shoots downwards from a point high above the potential terrain point
-        const rayOrigin = new THREE.Vector3(worldX, rayHeight, worldZ); // Start well above max height
-        const rayDirection = new THREE.Vector3(0, -1, 0);
-        this.raycaster.set(rayOrigin, rayDirection);
-        this.raycaster.near = 0;
-        this.raycaster.far = 100;
-        const intersects = this.raycaster.intersectObject(terrainMesh, false);
+        // Convert worldX/worldZ to local coordinates
+        const { xSize, ySize, xSegments, ySegments } = this.ground.options;
+        const halfX = xSize / 2;
+        const halfZ = ySize / 2;
+        const localX = ((worldX + halfX) / xSize) * xSegments;
+        const localZ = ((worldZ + halfZ) / ySize) * ySegments;
 
-        if (intersects.length > 0) {
-            return intersects[0].point.y;
-        }
-        return -100; // If outside terrain or no hit
+        // Clamp to grid
+        const ix = Math.floor(Math.max(0, Math.min(xSegments, localX)));
+        const iz = Math.floor(Math.max(0, Math.min(ySegments, localZ)));
+
+        // Get vertex index
+        const xl = xSegments + 1;
+        const position = terrainMesh.geometry.attributes.position;
+        const idx = iz * xl + ix;
+        if (!position || !position.array) return -100;
+        return position.array[idx * 3 + 2]; // Z is up in this terrain
     }
 
     getWorldBounds() {
@@ -144,5 +169,11 @@ export default class WorldGenerator {
             minY: 100,
             maxY: 100
         };
+    }
+
+    getWorldOctree() {
+        // Return the octree for collision detection
+        console.log("Octree triangles:", this.worldOctree.triangles.length);
+        return this.worldOctree;
     }
 }
