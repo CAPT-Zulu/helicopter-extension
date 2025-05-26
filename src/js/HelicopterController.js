@@ -25,7 +25,7 @@ const HELICOPTER_MASS = 2.0;
 
 // --- OTHER ---
 // Radius of the helicopter for collision detection
-const HELICOPTER_RADIUS = 5;
+const HELICOPTER_RADIUS = 0.75;
 const HELICOPTER_HEIGHT_OFFSET = HELICOPTER_RADIUS * 1.5;
 
 export default class HelicopterController {
@@ -248,9 +248,6 @@ export default class HelicopterController {
         const collisionResult = this.worldOctree.sphereIntersect(this.helicopterCollider);
         if (collisionResult) {
             console.log("Collision detected!", collisionResult);
-        }
-
-        if (collisionResult) {
             // If collision detected, adjust position to resolve penetration
             potentialPosition.addScaledVector(collisionResult.normal, collisionResult.depth);
 
@@ -303,27 +300,26 @@ export default class HelicopterController {
 
         if (this.worldGenerator) {
             // // --- Terrain Collision ---
-            // const terrainHeight = this.worldGenerator.getTerrainHeightAt(potentialPosition.x, potentialPosition.z);
-            // this.currentTerrainCollisionY = terrainHeight + HELICOPTER_HEIGHT_OFFSET;
+            const terrainHeight = this.worldGenerator.getTerrainHeightAt(potentialPosition.x, potentialPosition.z);
+            this.currentTerrainCollisionY = terrainHeight + HELICOPTER_HEIGHT_OFFSET;
 
-            // if (potentialPosition.y < this.currentTerrainCollisionY) {
-            //     potentialPosition.y = this.currentTerrainCollisionY;
-            //     // Dampen vertical velocity and apply friction if moving horizontally
-            //     if (this.velocity.y < 0) { // Only if moving downwards
-            //         this.velocity.y *= -0.2; // Small bounce or stop
-            //     }
-            //      // Apply more friction when on ground
-            //     this.velocity.x *= 0.80;
-            //     this.velocity.z *= 0.80;
+            if (potentialPosition.y < this.currentTerrainCollisionY) {
+                potentialPosition.y = this.currentTerrainCollisionY;
+                // Dampen vertical velocity and apply friction if moving horizontally
+                if (this.velocity.y < 0) { // Only if moving downwards
+                    this.velocity.y *= -0.2; // Small bounce or stop
+                }
+                // Apply more friction when on ground
+                this.velocity.x *= 0.80;
+                this.velocity.z *= 0.80;
 
-            //      // If thrusting upwards while on ground, allow liftoff
-            //     if (this.keys.w && localUp.y > 0.1) { // Check if trying to lift and somewhat upright
-            //         // Allow some upward velocity to overcome being stuck
-            //     } else if (this.velocity.y < 0.1) { // If settling
-            //         this.velocity.y = 0;
-            //     }
-
-            // }
+                // If thrusting upwards while on ground, allow liftoff
+                if (this.keys.w && localUp.y > 0.1) { // Check if trying to lift and somewhat upright
+                    // Allow some upward velocity to overcome being stuck
+                } else if (this.velocity.y < 0.1) { // If settling
+                    this.velocity.y = 0;
+                }
+            }
 
             // --- World Border Collision-- -
             const bounds = this.worldGenerator.getWorldBounds();

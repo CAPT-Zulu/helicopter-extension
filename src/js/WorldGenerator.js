@@ -93,7 +93,7 @@ export default class WorldGenerator {
 
         // Add ground to the scene
         this.scene.add(this.ground.scene);
-        this.worldOctree.fromGraphNode(this.ground.scene);
+        // this.worldOctree.fromGraphNode(this.ground.scene); // More efficient to use getTerrainHeightAt than using Octree for terrain mesh (O(1) vs O(logN))
     }
 
     setupSpawn() {
@@ -138,23 +138,66 @@ export default class WorldGenerator {
         const terrainMesh = this.getTerrainMesh();
         if (!terrainMesh || !terrainMesh.geometry) return -100;
 
-        // Convert worldX/worldZ to local coordinates
+        // Get terrain options
         const { xSize, ySize, xSegments, ySegments } = this.ground.options;
         const halfX = xSize / 2;
         const halfZ = ySize / 2;
-        const localX = ((worldX + halfX) / xSize) * xSegments;
-        const localZ = ((worldZ + halfZ) / ySize) * ySegments;
+
+        // Convert worldX/worldZ to local grid coordinates (u, v in [0,1])
+        const u = (worldX + halfX) / xSize;
+        const v = (worldZ + halfZ) / ySize;
 
         // Clamp to grid
-        const ix = Math.floor(Math.max(0, Math.min(xSegments, localX)));
-        const iz = Math.floor(Math.max(0, Math.min(ySegments, localZ)));
+        const gridX = Math.max(0, Math.min(xSegments - 1, u * xSegments));
+        const gridZ = Math.max(0, Math.min(ySegments - 1, v * ySegments));
+        const ix = Math.floor(gridX);
+        const iz = Math.floor(gridZ);
 
-        // Get vertex index
+        // Get vertex indices for the quad
         const xl = xSegments + 1;
         const position = terrainMesh.geometry.attributes.position;
-        const idx = iz * xl + ix;
         if (!position || !position.array) return -100;
-        return position.array[idx * 3 + 2]; // Z is up in this terrain
+
+        // Get the four corners of the quad
+        const i00 = (iz) * xl + (ix);
+        const i10 = (iz) * xl + (ix + 1);
+        const i01 = (iz + 1) * xl + (ix);
+        const i11 = (iz + 1) * xl + (ix + 1);
+
+        // Get positions
+        const getPos = (i) => ({
+            x: position.array[i * 3 + 0],
+            y: position.array[i * 3 + 2],
+            z: position.array[i * 3 + 1],
+        });
+        const p00 = getPos(i00);
+        const p10 = getPos(i10);
+        const p01 = getPos(i01);
+        const p11 = getPos(i11);
+
+        // Local position within the quad (0..1)
+        const fx = gridX - ix;
+        const fz = gridZ - iz;
+
+        // Determine which triangle of the quad the point is in
+        let height;
+        if (fx + fz < 1) {
+            // Lower triangle (p00, p10, p01)
+            // Barycentric interpolation
+            const h0 = p00.y;
+            const h1 = p10.y;
+            const h2 = p01.y;
+            height = h0 * (1 - fx - fz) + h1 * fx + h2 * fz;
+        } else {
+            // Upper triangle (p11, p10, p01)
+            // Barycentric interpolation
+            const h0 = p11.y;
+            const h1 = p10.y;
+            const h2 = p01.y;
+            height = h0 * (fx + fz - 1) + h1 * (1 - fz) + h2 * (1 - fx);
+        }
+
+        return height;
     }
 
     getWorldBounds() {
