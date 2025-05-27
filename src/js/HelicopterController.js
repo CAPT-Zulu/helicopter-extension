@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Octree } from 'three/addons/math/Octree.js';
 
 // --- ROTATIONAL CONTROL PARAMETERS ---
 // How quickly the helicopter tries to align to the target orientation. Lower = more lag/heft.
@@ -21,43 +20,30 @@ const GRAVITY_STRENGTH = 9.8;
 // General air resistance / linear damping.
 const LINEAR_DAMPING = 0.99;
 // Mass of the helicopter
-const HELICOPTER_MASS = 2.0;
+const HELICOPTER_MASS = 2;
 
 // --- OTHER ---
 // Radius of the helicopter for collision detection
-const HELICOPTER_RADIUS = 0.75;
-const HELICOPTER_HEIGHT_OFFSET = HELICOPTER_RADIUS * 1.5;
+const HELICOPTER_RADIUS = 2;
 
 export default class HelicopterController {
     constructor(camera, domElement, scene, worldGenerator) {
-        // Set camera and DOM element
+        // Controller Elements
         this.camera = camera;
         this.domElement = domElement;
         this.worldGenerator = worldGenerator;
         this.worldOctree = this.worldGenerator.getWorldOctree(); // Could not be avail?
         this.scene = scene;
 
-        // Helicopter collider
+        // Helicopter Collider
         this.helicopterCollider = new THREE.Sphere(new THREE.Vector3(0, 0, 0), HELICOPTER_RADIUS);
 
-        // Set up initial position and orientation
-        // this.initialPosition = new THREE.Vector3(0, 50, 20);
-        this.initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_HEIGHT_OFFSET : 50, 0);
-        this.initialOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
-
-        // Linear motion
+        // Local States
         this.velocity = new THREE.Vector3();
         this.acceleration = new THREE.Vector3();
-        // Rotational motion
-        this.targetOrientationQuaternion = new THREE.Quaternion(); // Desired orientation
-        this.camera.quaternion.copy(this.initialOrientation);      // Start with initial orientation
-        this.targetOrientationQuaternion.copy(this.camera.quaternion);
-        // Euler angles for input
+        this.targetAngle = new THREE.Quaternion();
         this.inputEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-        this.inputEuler.setFromQuaternion(this.camera.quaternion, 'YXZ');
-
-        // Key states
-        this.keys = { w: false, s: false, a: false, d: false, r: false };
+        this.keys = { w: false, s: false, a: false, d: false };
         this.isMouseLocked = false;
 
         // Initialize event listeners
@@ -66,26 +52,20 @@ export default class HelicopterController {
     }
 
     reset() {
+        // Reset initial positions and orientation
+        const initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS : 50, 0);
+        const initialOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
         // Reset camera position and orientation
-        this.camera.position.copy(this.initialPosition);
-        this.camera.quaternion.copy(this.initialOrientation);
+        this.camera.position.copy(initialPosition);
+        this.camera.quaternion.copy(initialOrientation);
+        // Reset collider position
+        this.helicopterCollider.center.copy(this.camera.position);
         // Reset input Euler angles
-        this.targetOrientationQuaternion.copy(this.camera.quaternion);
+        this.targetAngle.copy(this.camera.quaternion);
         this.inputEuler.setFromQuaternion(this.camera.quaternion, 'YXZ');
         // Reset velocity and acceleration
         this.velocity.set(0, 0, 0);
         this.acceleration.set(0, 0, 0);
-        // Set initial terrain collision Y based on starting position
-        if (this.worldGenerator) {
-            const terrainHeight = this.worldGenerator.getTerrainHeightAt(this.camera.position.x, this.camera.position.z);
-            this.currentTerrainCollisionY = terrainHeight + HELICOPTER_HEIGHT_OFFSET;
-        } else {
-            this.currentTerrainCollisionY = HELICOPTER_HEIGHT_OFFSET; // Fallback
-        }
-        // Ensure camera starts above this initial ground height
-        if (this.camera.position.y < this.currentTerrainCollisionY) {
-            this.camera.position.y = this.currentTerrainCollisionY + 10; // Give some buffer
-        }
     }
 
     initEventListeners() {
@@ -102,8 +82,7 @@ export default class HelicopterController {
         document.addEventListener('mozpointerlockchange', this.onPointerLockChange, false);
         document.addEventListener('webkitpointerlockchange', this.onPointerLockChange, false);
         document.addEventListener('pointerlockerror', this.onPointerLockError, false);
-        // Request pointer lock on click
-        this.domElement.addEventListener('click', this.onClick, false);
+        this.domElement.addEventListener('click', this.onClick, false); // For Scene pointer lock
     }
 
     dispose() {
@@ -155,7 +134,7 @@ export default class HelicopterController {
     }
 
     onPointerLockError(e) {
-        // Handle pointer lock error
+        // Handle pointer lock error (Try Alternative?)
         console.error('Pointer Lock Error:', e);
         this.isMouseLocked = false;
     }
@@ -186,33 +165,16 @@ export default class HelicopterController {
         this.inputEuler.x = Math.max(-Math.PI / 2 * 0.9, Math.min(Math.PI / 2 * 0.9, this.inputEuler.x));
     }
 
-    checkCollision(potentialPosition) {
-        // Get raycaster for collision detection
-        this.rayCaster.set(potentialPosition, new THREE.Vector3(0, -1, 0)); // Ray downwards
-        this.rayCaster.near = 0;
-        this.rayCaster.far = HELICOPTER_RADIUS;
-        this.rayCaster.ray.origin.copy(potentialPosition);
-        this.rayCaster.ray.origin.y -= HELICOPTER_RADIUS;
-        // Check for intersections with any objects in the scene
-        const intersects = this.rayCaster.intersectObjects(this.scene.children, true);
-        if (intersects.length > 0) {
-            // If there's a collision, return the first intersected object
-            return intersects[0].object;
-        }
-        // No collision detected
-        return null;
-    }
-
     update(deltaTime) {
         // 1. Handle Rotational Input & Update Target Orientation
         // Yaw from keys (A/D)
         this.inputEuler.y += (this.keys.a - this.keys.d) * YAW_KEY_SPEED * deltaTime * 60;
         // Convert the accumulated inputEuler to our targetQuaternion
-        this.targetOrientationQuaternion.setFromEuler(this.inputEuler);
+        this.targetAngle.setFromEuler(this.inputEuler);
 
         // 2. Smoothly Interpolate Current Orientation Towards Target
         this.camera.quaternion.slerp(
-            this.targetOrientationQuaternion,
+            this.targetAngle,
             ROTATIONAL_LERP_FACTOR * (deltaTime * 60)
         );
 
@@ -241,121 +203,75 @@ export default class HelicopterController {
         // 5. Collision Detection & Resolution
         // Calculate potential next position
         const potentialPosition = this.camera.position.clone().addScaledVector(this.velocity, deltaTime);
+        // Update helicopter collider's position
+        this.helicopterCollider.center.copy(potentialPosition);
 
-        // Update helicopter collider's position (center of sphere is camera position)
-        // this.helicopterCollider.center.copy(potentialPosition);
-        this.helicopterCollider.translate(potentialPosition);
+        // First Check if a collision has occurred with scene objects
         const collisionResult = this.worldOctree.sphereIntersect(this.helicopterCollider);
         if (collisionResult) {
-            console.log("Collision detected!", collisionResult);
             // If collision detected, adjust position to resolve penetration
             potentialPosition.addScaledVector(collisionResult.normal, collisionResult.depth);
-
             // Adjust velocity based on collision normal (bounce)
             const restitution = 0.15; // How much bounce (0 = no bounce, 1 = perfect bounce)
             this.velocity.addScaledVector(collisionResult.normal, -this.velocity.dot(collisionResult.normal) * (1 + restitution));
-
             // Apply friction/damping if on a surface
             if (collisionResult.normal.y > 0.5) { // Ground-like surface
-                const groundFrictionConstant = 8.0; // Adjust for desired friction
+                const groundFrictionConstant = 8.0;
                 const groundDampingFactor = Math.exp(-groundFrictionConstant * deltaTime);
                 this.velocity.x *= groundDampingFactor;
                 this.velocity.z *= groundDampingFactor;
-
                 // If settling on a flat surface and not trying to thrust up, stop vertical movement
                 if (Math.abs(this.velocity.y) < 0.5 && !this.keys.w && collisionResult.normal.y > 0.9) {
                     this.velocity.y = 0;
                 }
             }
         }
-
-        // Check for collisions with scene objects
-        // const collidedObject = this.checkCollision(potentialPosition);
-        // if (collidedObject) {
-        //     // If collision detected, adjust position to avoid collision
-
-        //     // If object is terrain, adjust Y position
-        //     if (collidedObject.userData.isTerrain) {
-        //         const terrainHeight = this.worldGenerator.getTerrainHeightAt(potentialPosition.x, potentialPosition.z);
-        //         potentialPosition.y = terrainHeight + HELICOPTER_HEIGHT_OFFSET;
-        //     } else {
-        //         // For other objects, just adjust position to avoid collision
-        //         // potentialPosition.copy(collidedObject.position).add(new THREE.Vector3(0, HELICOPTER_RADIUS, 0));
-        //     }
-
-        //     // Dampen vertical velocity and apply friction if moving horizontally
-        //     if (this.velocity.y < 0) { // Only if moving downwards
-        //         this.velocity.y *= -0.2; // Small bounce or stop
-        //     }
-        //     // Apply more friction when on ground
-        //     this.velocity.x *= 0.80;
-        //     this.velocity.z *= 0.80;
-        //     // If thrusting upwards while on ground, allow liftoff
-        //     if (this.keys.w && localUp.y > 0.1) { // Check if trying to lift and somewhat upright
-        //         // Allow some upward velocity to overcome being stuck
-        //     } else if (this.velocity.y < 0.1) { // If settling
-        //         this.velocity.y = 0; // Stop settling
-        //     }
-        // }
-
-        if (this.worldGenerator) {
-            // // --- Terrain Collision ---
-            const terrainHeight = this.worldGenerator.getTerrainHeightAt(potentialPosition.x, potentialPosition.z);
-            this.currentTerrainCollisionY = terrainHeight + HELICOPTER_HEIGHT_OFFSET;
-
-            if (potentialPosition.y < this.currentTerrainCollisionY) {
-                potentialPosition.y = this.currentTerrainCollisionY;
-                // Dampen vertical velocity and apply friction if moving horizontally
-                if (this.velocity.y < 0) { // Only if moving downwards
-                    this.velocity.y *= -0.2; // Small bounce or stop
-                }
-                // Apply more friction when on ground
-                this.velocity.x *= 0.80;
-                this.velocity.z *= 0.80;
-
-                // If thrusting upwards while on ground, allow liftoff
-                if (this.keys.w && localUp.y > 0.1) { // Check if trying to lift and somewhat upright
-                    // Allow some upward velocity to overcome being stuck
-                } else if (this.velocity.y < 0.1) { // If settling
-                    this.velocity.y = 0;
-                }
+        // Second Check if a collision has occurred with Terrain (Faster than handling Terrain in the Octree)
+        const terrainHeight = this.worldGenerator.getTerrainHeightAt(potentialPosition.x, potentialPosition.z);
+        this.currentTerrainCollisionY = terrainHeight + HELICOPTER_RADIUS;
+        if (potentialPosition.y < this.currentTerrainCollisionY) {
+            potentialPosition.y = this.currentTerrainCollisionY;
+            // Dampen vertical velocity and apply friction if moving horizontally
+            if (this.velocity.y < 0) { // Only if moving downwards
+                this.velocity.y *= -0.2; // Small bounce or stop
             }
+            // Apply more friction when on ground
+            this.velocity.x *= 0.80;
+            this.velocity.z *= 0.80;
 
-            // --- World Border Collision-- -
-            const bounds = this.worldGenerator.getWorldBounds();
-            // X Border
-            if (potentialPosition.x > bounds.maxX - HELICOPTER_RADIUS) {
-                potentialPosition.x = bounds.maxX - HELICOPTER_RADIUS;
-                this.velocity.x *= -0.3; // Softer bounce
-            } else if (potentialPosition.x < bounds.minX + HELICOPTER_RADIUS) {
-                potentialPosition.x = bounds.minX + HELICOPTER_RADIUS;
-                this.velocity.x *= -0.3;
+            // If thrusting upwards while on ground, allow liftoff
+            if (this.keys.w && localUp.y > 0.1) { // Check if trying to lift and somewhat upright
+                // Allow some upward velocity to overcome being stuck
+            } else if (this.velocity.y < 0.1) { // If settling
+                this.velocity.y = 0;
             }
-            // Z Border
-            if (potentialPosition.z > bounds.maxZ - HELICOPTER_RADIUS) {
-                potentialPosition.z = bounds.maxZ - HELICOPTER_RADIUS;
-                this.velocity.z *= -0.3;
-            } else if (potentialPosition.z < bounds.minZ + HELICOPTER_RADIUS) {
-                potentialPosition.z = bounds.minZ + HELICOPTER_RADIUS;
-                this.velocity.z *= -0.3;
-            }
-        } else {
-            // Fallback simple ground plane if no world generator
-            if (potentialPosition.y < HELICOPTER_HEIGHT_OFFSET) {
-                potentialPosition.y = HELICOPTER_HEIGHT_OFFSET;
-                this.velocity.y = Math.max(0, this.velocity.y * -0.1);
-                this.velocity.x *= 0.9;
-                this.velocity.z *= 0.9;
-            }
+        }
+
+        // --- World Border Collision-- -
+        const bounds = this.worldGenerator.getWorldBounds();
+        // X Border
+        if (potentialPosition.x > bounds.maxX - HELICOPTER_RADIUS) {
+            potentialPosition.x = bounds.maxX - HELICOPTER_RADIUS;
+            this.velocity.x *= -0.3; // Softer bounce
+        } else if (potentialPosition.x < bounds.minX + HELICOPTER_RADIUS) {
+            potentialPosition.x = bounds.minX + HELICOPTER_RADIUS;
+            this.velocity.x *= -0.3;
+        }
+        // Z Border
+        if (potentialPosition.z > bounds.maxZ - HELICOPTER_RADIUS) {
+            potentialPosition.z = bounds.maxZ - HELICOPTER_RADIUS;
+            this.velocity.z *= -0.3;
+        } else if (potentialPosition.z < bounds.minZ + HELICOPTER_RADIUS) {
+            potentialPosition.z = bounds.minZ + HELICOPTER_RADIUS;
+            this.velocity.z *= -0.3;
         }
 
         // 6. Apply Final Position
         this.camera.position.copy(potentialPosition);
     }
 
-    // Helper to apply force (F = ma -> a = F/m)
     applyForce(forceVector) {
-        // Assuming mass is incorporated in force strength or is 1
+        // Assuming mass is incorporated in force strength or is 1 (F = ma -> a = F/m)
         this.acceleration.addScaledVector(forceVector, 1 / HELICOPTER_MASS);
     }
 }

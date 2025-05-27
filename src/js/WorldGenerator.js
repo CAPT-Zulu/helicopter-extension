@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Terrain } from './THREE.Terrain.mjs';
 import { Octree } from 'three/addons/math/Octree.js';
-import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
+// import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 
 export default class WorldGenerator {
     constructor(scene) {
@@ -17,9 +17,10 @@ export default class WorldGenerator {
         this.setupEnvironment();
         this.setupSpawn();
 
-        const octreeHelper = new OctreeHelper(this.worldOctree);
-        octreeHelper.visible = true;
-        this.scene.add(octreeHelper);
+        // DEBUG: OctreeHelper
+        // const octreeHelper = new OctreeHelper(this.worldOctree);
+        // octreeHelper.visible = true;
+        // this.scene.add(octreeHelper);
     }
 
     setupEnvironment() {
@@ -216,7 +217,6 @@ export default class WorldGenerator {
 
     getWorldOctree() {
         // Return the octree for collision detection
-        console.log("Octree triangles:", this.worldOctree.triangles.length);
         return this.worldOctree;
     }
 }
