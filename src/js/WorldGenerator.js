@@ -1,17 +1,26 @@
 import * as THREE from 'three';
 import { Terrain } from './THREE.Terrain.mjs';
+import { Octree } from 'three/addons/math/Octree.js';
+// import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 
 export default class WorldGenerator {
     constructor(scene) {
         // Set scene
         this.scene = scene;
+        this.worldOctree = new Octree();
         this.ground = null;
-        this.raycaster = new THREE.Raycaster();
+        this.spawn = null;
 
         // Setup world / environment
         this.setupTerrain();
         this.setupLights();
         this.setupEnvironment();
+        this.setupSpawn();
+
+        // DEBUG: OctreeHelper
+        // const octreeHelper = new OctreeHelper(this.worldOctree);
+        // octreeHelper.visible = true;
+        // this.scene.add(octreeHelper);
     }
 
     setupEnvironment() {
@@ -85,6 +94,20 @@ export default class WorldGenerator {
 
         // Add ground to the scene
         this.scene.add(this.ground.scene);
+        // this.worldOctree.fromGraphNode(this.ground.scene); // More efficient to use getTerrainHeightAt than using Octree for terrain mesh (O(1) vs O(logN))
+    }
+
+    setupSpawn() {
+        // Cylinder from -100 to (terrain height at 0,0) + 50
+        const spawnHeight = this.getTerrainHeightAt(0, 0);
+        const spawnGeometry = new THREE.CylinderGeometry(20, 20, 30, 12);
+        const spawnMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 }); // Grey
+        this.spawn = new THREE.Mesh(spawnGeometry, spawnMaterial);
+        this.spawn.position.set(0, spawnHeight + 10); // Centered
+        this.spawn.castShadow = true;
+        this.spawn.receiveShadow = true;
+        this.scene.add(this.spawn);
+        this.worldOctree.fromGraphNode(this.spawn);
     }
 
     setupLights() {
@@ -112,24 +135,70 @@ export default class WorldGenerator {
         return this.ground ? this.ground.mesh : null;
     }
 
-    getTerrainHeightAt(worldX, worldZ, rayHeight) {
+    getTerrainHeightAt(worldX, worldZ) {
         const terrainMesh = this.getTerrainMesh();
-        if (!terrainMesh) {
-            return -100; // Fallback if no terrain
+        if (!terrainMesh || !terrainMesh.geometry) return -100;
+
+        // Get terrain options
+        const { xSize, ySize, xSegments, ySegments } = this.ground.options;
+        const halfX = xSize / 2;
+        const halfZ = ySize / 2;
+
+        // Convert worldX/worldZ to local grid coordinates (u, v in [0,1])
+        const u = (worldX + halfX) / xSize;
+        const v = (worldZ + halfZ) / ySize;
+
+        // Clamp to grid
+        const gridX = Math.max(0, Math.min(xSegments - 1, u * xSegments));
+        const gridZ = Math.max(0, Math.min(ySegments - 1, v * ySegments));
+        const ix = Math.floor(gridX);
+        const iz = Math.floor(gridZ);
+
+        // Get vertex indices for the quad
+        const xl = xSegments + 1;
+        const position = terrainMesh.geometry.attributes.position;
+        if (!position || !position.array) return -100;
+
+        // Get the four corners of the quad
+        const i00 = (iz) * xl + (ix);
+        const i10 = (iz) * xl + (ix + 1);
+        const i01 = (iz + 1) * xl + (ix);
+        const i11 = (iz + 1) * xl + (ix + 1);
+
+        // Get positions
+        const getPos = (i) => ({
+            x: position.array[i * 3 + 0],
+            y: position.array[i * 3 + 2],
+            z: position.array[i * 3 + 1],
+        });
+        const p00 = getPos(i00);
+        const p10 = getPos(i10);
+        const p01 = getPos(i01);
+        const p11 = getPos(i11);
+
+        // Local position within the quad (0..1)
+        const fx = gridX - ix;
+        const fz = gridZ - iz;
+
+        // Determine which triangle of the quad the point is in
+        let height;
+        if (fx + fz < 1) {
+            // Lower triangle (p00, p10, p01)
+            // Barycentric interpolation
+            const h0 = p00.y;
+            const h1 = p10.y;
+            const h2 = p01.y;
+            height = h0 * (1 - fx - fz) + h1 * fx + h2 * fz;
+        } else {
+            // Upper triangle (p11, p10, p01)
+            // Barycentric interpolation
+            const h0 = p11.y;
+            const h1 = p10.y;
+            const h2 = p01.y;
+            height = h0 * (fx + fz - 1) + h1 * (1 - fz) + h2 * (1 - fx);
         }
 
-        // Ray shoots downwards from a point high above the potential terrain point
-        const rayOrigin = new THREE.Vector3(worldX, rayHeight, worldZ); // Start well above max height
-        const rayDirection = new THREE.Vector3(0, -1, 0);
-        this.raycaster.set(rayOrigin, rayDirection);
-        this.raycaster.near = 0;
-        this.raycaster.far = 100;
-        const intersects = this.raycaster.intersectObject(terrainMesh, false);
-
-        if (intersects.length > 0) {
-            return intersects[0].point.y;
-        }
-        return -100; // If outside terrain or no hit
+        return height;
     }
 
     getWorldBounds() {
@@ -144,5 +213,10 @@ export default class WorldGenerator {
             minY: 100,
             maxY: 100
         };
+    }
+
+    getWorldOctree() {
+        // Return the octree for collision detection
+        return this.worldOctree;
     }
 }
