@@ -6,7 +6,7 @@ const ROTATIONAL_LERP_FACTOR = 0.05;
 // How much rotational speed is reduced each frame. Lower = spins longer.
 const ROTATIONAL_DAMPING = 0.92;
 // Sensitivity for mouse pitch/roll input.
-const MOUSE_SENSITIVITY = 0.0015;
+const MOUSE_SENSITIVITY = 0.001;
 // Speed of yaw control with A/D keys.
 const YAW_KEY_SPEED = 0.025;
 
