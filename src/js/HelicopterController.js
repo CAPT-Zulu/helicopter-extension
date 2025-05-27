@@ -12,15 +12,15 @@ const YAW_KEY_SPEED = 0.025;
 
 // --- MOVEMENT PHYSICS PARAMETERS ---
 // Max thrust force applied along the helicopter's local UP vector.
-const MAIN_THRUST_FORCE = 35.0;
+const MAIN_THRUST_FORCE = 17.0;
 // Force applied downwards when 'S' is pressed.
 const DOWNWARD_THRUST_FORCE = 15.0;
 // Strength of gravity.
 const GRAVITY_STRENGTH = 9.8;
 // General air resistance / linear damping.
-const LINEAR_DAMPING = 0.99;
+const LINEAR_DAMPING = 0.997;
 // Mass of the helicopter
-const HELICOPTER_MASS = 2;
+const HELICOPTER_MASS = 1;
 
 // --- OTHER ---
 // Radius of the helicopter for collision detection
@@ -53,7 +53,7 @@ export default class HelicopterController {
 
     reset() {
         // Reset initial positions and orientation
-        const initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS : 50, 0);
+        const initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS + 0.01: 50, 0);
         const initialOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
         // Reset camera position and orientation
         this.camera.position.copy(initialPosition);
@@ -181,7 +181,7 @@ export default class HelicopterController {
         // 3. Calculate Forces
         this.acceleration.set(0, 0, 0); // Reset acceleration
         // Get helicopter's local up direction in world space
-        const localUp = new THREE.Vector3(0, 1, 0);
+        const localUp = new THREE.Vector3(0, 1, -0.25); // Add slight forward tilt
         localUp.applyQuaternion(this.camera.quaternion);
         // Calculate thrust based on key presses
         let thrustMagnitude = (this.keys.w ? MAIN_THRUST_FORCE : 0) - (this.keys.s ? DOWNWARD_THRUST_FORCE : 0);
@@ -198,7 +198,7 @@ export default class HelicopterController {
         // V_new = V_old + A * dt
         this.velocity.addScaledVector(this.acceleration, deltaTime);
         // Apply linear damping (air resistance)
-        this.velocity.multiplyScalar(Math.pow(LINEAR_DAMPING, deltaTime * 30)); // Better way of doing this? (TODO)
+        this.velocity.multiplyScalar(Math.pow(LINEAR_DAMPING, deltaTime * 60)); // Better way of doing this? (TODO)
 
         // 5. Collision Detection & Resolution
         // Calculate potential next position
