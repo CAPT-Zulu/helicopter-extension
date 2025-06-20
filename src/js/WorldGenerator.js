@@ -1,26 +1,29 @@
 import * as THREE from 'three';
 import { Terrain } from './THREE.Terrain.mjs';
 import { Octree } from 'three/addons/math/Octree.js';
-// import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
+import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
+import StructureFactory from './Structures.js';
 
 export default class WorldGenerator {
     constructor(scene) {
         // Set scene
         this.scene = scene;
-        this.worldOctree = new Octree();
+        this.worldOctree = null;
+        // this.structureFactory = new StructureFactory();
+        this.collisionGroup = new THREE.Group();
         this.ground = null;
         this.spawn = null;
+
+        // Scene Variables
+        // this.structureAmount = Math.floor(Math.random() * (5 - 2)) + 2;
 
         // Setup world / environment
         this.setupTerrain();
         this.setupLights();
         this.setupEnvironment();
         this.setupSpawn();
-
-        // DEBUG: OctreeHelper
-        // const octreeHelper = new OctreeHelper(this.worldOctree);
-        // octreeHelper.visible = true;
-        // this.scene.add(octreeHelper);
+        this.setupOctree();
+        // this.setupStructures();
     }
 
     setupEnvironment() {
@@ -106,8 +109,36 @@ export default class WorldGenerator {
         this.spawn.position.set(0, spawnHeight + 10); // Centered
         this.spawn.castShadow = true;
         this.spawn.receiveShadow = true;
-        this.scene.add(this.spawn);
-        this.worldOctree.fromGraphNode(this.spawn);
+        // Add spawn to scene and collision group
+        // this.scene.add(this.spawn);
+        this.collisionGroup.add(this.spawn);
+        // this.worldOctree.fromGraphNode(this.spawn);
+    }
+
+    setupStructures() {
+        // Create structures 
+        for (let x = 0; x < this.structureAmount; x++) {
+            // Temp structure
+            // let tempStructure = new THREE.BoxGeometry(50, 50, 50);
+            // let tempMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+            // let tempMesh = new THREE.Mesh(tempStructure, tempMaterial);
+            let tempMesh = this.structureFactory.getRandomStructure();
+            if (!tempMesh) {
+                console.warn("No structure created, skipping this iteration.");
+                continue;
+            }
+            // Random position between +-50 to +-450
+            let tempPosition = [
+                ((Math.random() < 0.5) ? Math.floor(Math.random() * (-51 - (-450) + 1)) + (-450) : Math.floor(Math.random() * (450 - 51 + 1)) + (51)),
+                ((Math.random() < 0.5) ? Math.floor(Math.random() * (-51 - (-450) + 1)) + (-450) : Math.floor(Math.random() * (450 - 51 + 1)) + (51))
+            ];
+            let positionY = this.getTerrainHeightAt(tempPosition[0], tempPosition[1]);
+            tempMesh.position.set(tempPosition[0], positionY + 15, tempPosition[1]);
+            // Add model to scene and collision group
+            this.scene.add(tempMesh);
+            this.collisionGroup.add(tempMesh);
+            // this.worldOctree.fromGraphNode(tempMesh);
+        }
     }
 
     setupLights() {
@@ -128,6 +159,23 @@ export default class WorldGenerator {
         directionalLight.shadow.normalBias = 0.05;
         directionalLight.shadow.bias = 0;
         this.scene.add(directionalLight);
+    }
+
+    setupOctree() {
+        // Create octree for collision detection
+        this.worldOctree = new Octree({
+            overlapPct: 0.1,
+            objectsThreshold: 8,
+        });
+        // Add collision group to octree
+        if (this.collisionGroup && this.collisionGroup.children.length > 0) {
+            this.scene.add(this.collisionGroup);
+            this.worldOctree.fromGraphNode(this.collisionGroup);
+        }
+        // DEBUG: OctreeHelper
+        const octreeHelper = new OctreeHelper(this.worldOctree);
+        octreeHelper.visible = true;
+        this.scene.add(octreeHelper);
     }
 
     getTerrainMesh() {
