@@ -5,7 +5,7 @@ export default class NoiseGenerator {
         // Set to provided seed
         this.seed = seed;
         // Create a 2D simplex noise instance with the seed
-        this.simplexNoise = createNoise2D(seed);
+        this.simplexNoise = createNoise2D();
         this.evaluateNoise = (x, y) => this.simplexNoise(x, y);
     }
 
