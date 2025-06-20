@@ -21,7 +21,7 @@ export default class WorldGenerator {
         this.noiseGenerator = new NoiseGenerator(this.terrainSeed);
         this.terrainSize = { width: 1024, height: 1024 }; // World units
         this.heightMapResolution = { width: 256, height: 256 }; // Texture resolution
-        this.planeSegments = 512; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
+        this.planeSegments = 256; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
         this.terrainHeightLimits = { min: -100, max: 150 }; // World height limits
 
         // Noise parameters
@@ -50,8 +50,8 @@ export default class WorldGenerator {
     setupEnvironment() {
         // Water plane
         const water = new THREE.Mesh(
-            new THREE.PlaneGeometry(this.terrainSize.width * 6, this.terrainSize.height * 6, 16, 16),
-            new THREE.MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
+            new THREE.PlaneGeometry(this.terrainSize.width * 3, this.terrainSize.height * 3, 16, 16),
+            new THREE.MeshLambertMaterial({ color: 0x006ba0 })
         )
         water.position.y = this.terrainHeightLimits.min + 1; // Slightly above the minimum height
         water.rotation.x = -0.5 * Math.PI;

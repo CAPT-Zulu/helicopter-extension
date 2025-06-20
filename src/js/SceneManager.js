@@ -38,12 +38,11 @@ export default class SceneManager {
         // Create a WebGL renderer
         const renderer = new WebGLRenderer({
             canvas: this.canvas,
-            antialias: true
+            antialias: false // Temp fix
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
-        renderer.shadowMap.enabled = true;
-        renderer.toneMapping = ACESFilmicToneMapping;
+        renderer.shadowMap.enabled = false;
         return renderer;
     }
 

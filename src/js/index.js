@@ -1,4 +1,5 @@
 import { Clock } from 'three';
+import Stats from 'three/addons/libs/stats.module.js';
 import SceneManager from './SceneManager.js';
 import HelicopterController from './HelicopterController.js';
 
@@ -6,12 +7,17 @@ import HelicopterController from './HelicopterController.js';
 let sceneManager;
 let helicopterController;
 let clock;
+let statsInstance;
 
 // Init
 function init() {
     // Get canvas element
     const canvas = document.getElementById('three-canvas');
     if (!canvas) { console.error("Canvas not found!"); return; }
+
+    // Set up stats for performance monitoring
+    statsInstance = new Stats();
+    canvas.parentNode.appendChild(statsInstance.dom);
 
     // Set up the scene
     sceneManager = new SceneManager(canvas);
@@ -41,6 +47,7 @@ function animate() {
     try {
         sceneManager.update();
         helicopterController.update(deltaTime);
+        statsInstance.update();
     } catch (error) {
         console.error("Error during animation loop:", error);
         cancelAnimationFrame(rafID);
