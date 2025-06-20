@@ -22,12 +22,12 @@ export default class WorldGenerator {
         this.noiseGenerator = new NoiseGenerator(this.terrainSeed);
         this.terrainSize = { width: 1024, height: 1024 }; // World units
         this.heightMapResolution = { width: 256, height: 256 }; // Texture resolution
-        this.planeSegments = 256; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
+        this.planeSegments = 512; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
         this.terrainHeightLimits = { min: -100, max: 150 }; // World height limits
 
         // Noise parameters
         this.noiseParams = {
-            scale: 900,        // Lower = more zoomed in, more features. Higher = smoother, larger features.
+            scale: 600,        // Lower = more zoomed in, more features. Higher = smoother, larger features.
             octaves: 5,         // Number of noise layers (more = more detail, but slower)
             persistence: 0.5,   // How much detail is added or removed at each octave (0-1)
             lacunarity: 2.0,    // How much detail is added or removed at each octave (typically > 1)
