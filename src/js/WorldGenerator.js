@@ -30,10 +30,10 @@ export default class WorldGenerator {
             offsetX: 0,         // Offset, could be used in the future?
             offsetY: 0,         // Offset, could be used in the future?
         };
-        
+
         // Debug options
         this.debugOctreeHelper = false; // Show octree helper in scene
-        this.debugSaveNoiseMap = true; // Save generated heightmap to PNG for debugging
+        this.debugSaveNoiseMap = false; // Save generated heightmap to PNG for debugging
 
 
         // Setup world / environment
@@ -114,7 +114,7 @@ export default class WorldGenerator {
                 uHeightMap: { value: heightMapTexture },
                 uMinHeight: { value: this.terrainHeightLimits.min },
                 uMaxHeight: { value: this.terrainHeightLimits.max },
-                
+
                 // Textures
                 uSandTexture: { value: tSand },
                 uGrassTexture: { value: tGrass },
@@ -134,7 +134,7 @@ export default class WorldGenerator {
                 uSnowLevel: { value: 120 },         // Full snow
                 uBlendRange: { value: 15.0 },       // How far to blend between texture layers
                 uSlopeThreshold: { value: 0.7 },    // Radians (approx 40 degrees for rock on slopes)
-                uSlopeBlendRange: { value: 0.3 }    
+                uSlopeBlendRange: { value: 0.3 }
             },
             vertexShader: `
                 uniform sampler2D uHeightMap;
@@ -315,7 +315,7 @@ export default class WorldGenerator {
         directionalLight.shadow.camera.right = shadowCamSize;
         directionalLight.shadow.camera.top = shadowCamSize;
         directionalLight.shadow.camera.bottom = -shadowCamSize;
-        directionalLight.shadow.bias = -0.001; 
+        directionalLight.shadow.bias = -0.001;
         this.scene.add(directionalLight);
 
         // Add a shadow camera helper for debugging?
@@ -358,20 +358,20 @@ export default class WorldGenerator {
             console.warn('Ground data not initialized. Returning min height.');
             return this.terrainHeightLimits.min;
         }
-        const { rawHeightData, heightMapResolution, terrainSize, minHeight, maxHeight } = this.ground;
-        const dataWidth = heightMapResolution.width;
-        const dataHeight = heightMapResolution.height;
+        const { rawHeightData } = this.ground;
+        const dataWidth = this.heightMapResolution.width;
+        const dataHeight = this.heightMapResolution.height;
 
         // Convert world coordinates to UV coordinates (0-1 range) for the heightmap
-        const u = (worldX + terrainSize.width / 2) / terrainSize.width;
+        const u = (worldX + this.terrainSize.width / 2) / this.terrainSize.width;
         // Z-axis might be flipped depending on plane orientation vs texture coords
         // Standard UVs: (0,0) is bottom-left or top-left. PlaneGeometry UVs (0,0) at one corner.
         // If plane rotated -PI/2 on X, original Y becomes Z.
         // UV.y typically maps to Z. Let's assume standard mapping for now.
-        const v = 1.0 - ((worldZ + terrainSize.depth / 2) / terrainSize.depth); // Flipped v for typical image coords
+        const v = 1.0 - ((worldZ + this.terrainSize.depth / 2) / this.terrainSize.depth); // Flipped v for typical image coords
 
         if (u < 0 || u > 1 || v < 0 || v > 1) {
-            return minHeight; // Out of bounds
+            return this.terrainHeightLimits.min; // Out of bounds
         }
 
         // Convert UV to raw data array indices (float)
@@ -392,14 +392,14 @@ export default class WorldGenerator {
         const h21 = rawHeightData[y1 * dataWidth + x2];
         const h12 = rawHeightData[y2 * dataWidth + x1];
         const h22 = rawHeightData[y2 * dataWidth + x2];
-        
+
         // Bilinear interpolation for normalized height
         const h_norm_top = h11 * (1 - wx) + h21 * wx;
         const h_norm_bottom = h12 * (1 - wx) + h22 * wx;
         const interpolated_h_norm = h_norm_top * (1 - wy) + h_norm_bottom * wy;
-        
+
         // Scale to actual world height
-        return minHeight + interpolated_h_norm * (maxHeight - minHeight);
+        return this.terrainHeightLimits.min + interpolated_h_norm * (this.terrainHeightLimits.max - this.terrainHeightLimits.min);
     }
 
 
