@@ -3,6 +3,7 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
+import alea from 'alea';
 
 export default class WorldGenerator {
     constructor(scene) {
@@ -16,7 +17,7 @@ export default class WorldGenerator {
         this.sunDirection = null;
 
         // Terrain Configuration
-        this.terrainSeed = Math.floor(Math.random() * 100000); // Seed for noise generation
+        this.terrainSeed = alea() // Random seed for noise generation
         this.noiseGenerator = new NoiseGenerator(this.terrainSeed);
         this.terrainSize = { width: 1024, height: 1024 }; // World units
         this.heightMapResolution = { width: 256, height: 256 }; // Texture resolution
