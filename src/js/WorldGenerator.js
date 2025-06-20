@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Group, Mesh, PlaneGeometry, CylinderGeometry, MeshLambertMaterial, MeshBasicMaterial , Fog, DataTexture, RedFormat, FloatType, LinearFilter, TextureLoader, RepeatWrapping, ShaderMaterial, Vector2, Color, Vector3, AmbientLight, DirectionalLight } from 'three';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
@@ -10,7 +10,7 @@ export default class WorldGenerator {
         this.scene = scene;
         this.worldOctree = null;
         // this.structureFactory = new StructureFactory();
-        this.collisionGroup = new THREE.Group();
+        this.collisionGroup = new Group();
         this.ground = null; // This will now hold mesh and height data (Maybe more in the future)
         this.spawn = null;
 
@@ -19,7 +19,7 @@ export default class WorldGenerator {
         this.noiseGenerator = new NoiseGenerator(this.terrainSeed);
         this.terrainSize = { width: 4096, depth: 4096 }; // World units
         this.heightMapResolution = { width: 512, height: 512 }; // Texture resolution
-        this.terrainHeightLimits = { min: -100, max: 400 }; // World height limits
+        this.terrainHeightLimits = { min: -100, max: 200 }; // World height limits
 
         // Noise parameters
         this.noiseParams = {
@@ -47,15 +47,15 @@ export default class WorldGenerator {
 
     setupEnvironment() {
         // Water plane
-        const water = new THREE.Mesh(
-            new THREE.PlaneGeometry(this.terrainSize.width * 2, this.terrainSize.depth * 2, 16, 16),
-            new THREE.MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
+        const water = new Mesh(
+            new PlaneGeometry(this.terrainSize.width * 2, this.terrainSize.depth * 2, 16, 16),
+            new MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
         )
         water.position.y = this.terrainHeightLimits.min + 1; // Slightly above the minimum height
         water.rotation.x = -0.5 * Math.PI;
         this.scene.add(water);
         // Sky fog
-        this.scene.fog = new THREE.Fog(0x87ceeb, 100, 1500);
+        this.scene.fog = new Fog(0x87ceeb, 100, 1500);
     }
 
     setupTerrain() {
@@ -75,21 +75,21 @@ export default class WorldGenerator {
                 `heightmap_seed_${this.terrainSeed}.png`
             );
         }
-        // Create a THREE.DataTexture from the height data
-        const heightMapTexture = new THREE.DataTexture(
+        // Create a DataTexture from the height data
+        const heightMapTexture = new DataTexture(
             heightDataResult.data,
             heightDataResult.width,
             heightDataResult.height,
-            THREE.RedFormat, // Using RedFormat as we only need one channel for height
-            THREE.FloatType  // Using FloatType for precision
+            RedFormat, // Using RedFormat as we only need one channel for height
+            FloatType  // Using FloatType for precision
         );
         heightMapTexture.needsUpdate = true;
-        heightMapTexture.magFilter = THREE.LinearFilter; // Smooth interpolation
-        heightMapTexture.minFilter = THREE.LinearFilter;
+        heightMapTexture.magFilter = LinearFilter; // Smooth interpolation
+        heightMapTexture.minFilter = LinearFilter;
 
         // Create terrain geometry (Plane for now, maybe later a more complex mesh so we can do culling?)
         const planeSegments = 255; // Should ideally match heightMapResolution.width/height
-        const terrainGeometry = new THREE.PlaneGeometry(
+        const terrainGeometry = new PlaneGeometry(
             this.terrainSize.width,
             this.terrainSize.depth,
             planeSegments,
@@ -98,17 +98,17 @@ export default class WorldGenerator {
         terrainGeometry.rotateX(-Math.PI / 2); // Orient plane horizontally
 
         // Load textures for terrain layers
-        const textureLoader = new THREE.TextureLoader();
+        const textureLoader = new TextureLoader();
         const tSand = textureLoader.load('textures/sand.jpg');
         const tGrass = textureLoader.load('textures/grass.jpg');
         const tRock = textureLoader.load('textures/stone.jpg');
         const tSnow = textureLoader.load('textures/snow.jpg');
         [tSand, tGrass, tRock, tSnow].forEach(t => {
-            t.wrapS = t.wrapT = THREE.RepeatWrapping; // Repeat textures
+            t.wrapS = t.wrapT = RepeatWrapping; // Repeat textures
         });
 
         // Setup the custom shader material for terrain (Based off SebLague's terrain shader)
-        const terrainMaterial = new THREE.ShaderMaterial({
+        const terrainMaterial = new ShaderMaterial({
             uniforms: {
                 // Heightmap and displacement
                 uHeightMap: { value: heightMapTexture },
@@ -120,12 +120,12 @@ export default class WorldGenerator {
                 uGrassTexture: { value: tGrass },
                 uRockTexture: { value: tRock },
                 uSnowTexture: { value: tSnow },
-                uTextureRepeat: { value: new THREE.Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
+                uTextureRepeat: { value: new Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
 
                 // Lighting (basic)
-                uAmbientLightColor: { value: new THREE.Color(0x666666) },
-                uDirectionalLightColor: { value: new THREE.Color(0xffffff) },
-                uDirectionalLightDirection: { value: new THREE.Vector3(0.5, 1, 0.75).normalize() }, // Example light direction
+                uAmbientLightColor: { value: new Color(0x666666) },
+                uDirectionalLightColor: { value: new Color(0xffffff) },
+                uDirectionalLightDirection: { value: new Vector3(0.5, 1, 0.75).normalize() }, // Example light direction
 
                 // Blending parameters
                 uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
@@ -263,7 +263,7 @@ export default class WorldGenerator {
         });
 
         // Create the terrain mesh
-        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        const groundMesh = new Mesh(terrainGeometry, terrainMaterial);
         groundMesh.receiveShadow = true;
         groundMesh.castShadow = true;
 
@@ -284,9 +284,9 @@ export default class WorldGenerator {
     setupSpawn() {
         // Create a spawn point at the center of the terrain
         const spawnHeight = this.getTerrainHeightAt(0, 0);
-        this.spawn = new THREE.Mesh(
-            new THREE.CylinderGeometry(20, 20, 30, 12), // Cylinder for spawn point
-            new THREE.MeshBasicMaterial({ color: 0x888888 })
+        this.spawn = new Mesh(
+            new CylinderGeometry(20, 20, 30, 12), // Cylinder for spawn point
+            new MeshBasicMaterial({ color: 0x888888 })
         )
         this.spawn.position.set(0, spawnHeight + 15, 0); // Center on terrain
         this.spawn.castShadow = true;
@@ -296,11 +296,11 @@ export default class WorldGenerator {
 
     setupLights() {
         // Create ambient light (Maybe, shader kinda handles it, maybe for structures and other objects)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        const ambientLight = new AmbientLight(0xffffff, 0.2);
         this.scene.add(ambientLight);
 
         // Create a directional light (Place it based on the terrain's shader light)
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const directionalLight = new DirectionalLight(0xffffff, 1.0);
         directionalLight.position.set(
             this.ground.mesh.material.uniforms.uDirectionalLightDirection.value.x,
             this.ground.mesh.material.uniforms.uDirectionalLightDirection.value.y,
@@ -317,10 +317,6 @@ export default class WorldGenerator {
         directionalLight.shadow.camera.bottom = -shadowCamSize;
         directionalLight.shadow.bias = -0.001;
         this.scene.add(directionalLight);
-
-        // Add a shadow camera helper for debugging?
-        const shadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
-        this.scene.add(shadowHelper);
     }
 
     setupOctree() {
