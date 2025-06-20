@@ -20,7 +20,7 @@ const GRAVITY_STRENGTH = 9.8;
 // General air resistance / linear damping.
 const LINEAR_DAMPING = 0.997;
 // Mass of the helicopter
-const HELICOPTER_MASS = 1;
+const HELICOPTER_MASS = 0.8;
 
 // --- OTHER ---
 // Radius of the helicopter for collision detection
