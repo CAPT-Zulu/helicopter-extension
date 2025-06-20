@@ -4,11 +4,13 @@
     "@types/bun": "latest",
     "@types/chrome": "^0.0.323",
     "@types/three": "^0.176.0",
+    "@yushijinhun/three-minifier-rollup": "^0.4.0",
     "cpy-cli": "^5.0.0",
-    "rimraf": "^6.0.1"
+    "rimraf": "^6.0.1",
+    "rollup": "^4.44.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   },
   "private": true,
   "scripts": {
@@ -21,6 +23,7 @@
   },
   "type": "module",
   "dependencies": {
+    "simplex-noise": "^4.0.3",
     "three": "^0.176.0"
   }
 }
