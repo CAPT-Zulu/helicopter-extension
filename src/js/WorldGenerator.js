@@ -1,4 +1,5 @@
-import { Group, Mesh, PlaneGeometry, CylinderGeometry, MeshLambertMaterial, MeshBasicMaterial , Fog, DataTexture, RedFormat, FloatType, LinearFilter, TextureLoader, RepeatWrapping, ShaderMaterial, Vector2, Color, Vector3, AmbientLight, DirectionalLight } from 'three';
+import { Group, Mesh, PlaneGeometry, CylinderGeometry, MeshLambertMaterial, Fog, DataTexture, RedFormat, FloatType, LinearFilter, TextureLoader, RepeatWrapping, ShaderMaterial, Vector2, Color, Vector3, AmbientLight, DirectionalLight } from 'three';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
@@ -13,18 +14,21 @@ export default class WorldGenerator {
         this.collisionGroup = new Group();
         this.ground = null; // This will now hold mesh and height data (Maybe more in the future)
         this.spawn = null;
+        this.sunPosition = null;
+        this.sunDirection = null;
 
         // Terrain Configuration
         this.terrainSeed = Math.floor(Math.random() * 100000); // Seed for noise generation
         this.noiseGenerator = new NoiseGenerator(this.terrainSeed);
-        this.terrainSize = { width: 4096, depth: 4096 }; // World units
-        this.heightMapResolution = { width: 512, height: 512 }; // Texture resolution
-        this.terrainHeightLimits = { min: -100, max: 200 }; // World height limits
+        this.terrainSize = { width: 1024, height: 1024 }; // World units
+        this.heightMapResolution = { width: 256, height: 256 }; // Texture resolution
+        this.planeSegments = 256; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
+        this.terrainHeightLimits = { min: -100, max: 150 }; // World height limits
 
         // Noise parameters
         this.noiseParams = {
-            scale: 1000,        // Lower = more zoomed in, more features. Higher = smoother, larger features.
-            octaves: 8,         // Number of noise layers (more = more detail, but slower)
+            scale: 900,        // Lower = more zoomed in, more features. Higher = smoother, larger features.
+            octaves: 5,         // Number of noise layers (more = more detail, but slower)
             persistence: 0.5,   // How much detail is added or removed at each octave (0-1)
             lacunarity: 2.0,    // How much detail is added or removed at each octave (typically > 1)
             offsetX: 0,         // Offset, could be used in the future?
@@ -48,7 +52,7 @@ export default class WorldGenerator {
     setupEnvironment() {
         // Water plane
         const water = new Mesh(
-            new PlaneGeometry(this.terrainSize.width * 2, this.terrainSize.depth * 2, 16, 16),
+            new PlaneGeometry(this.terrainSize.width * 6, this.terrainSize.height * 6, 16, 16),
             new MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
         )
         water.position.y = this.terrainHeightLimits.min + 1; // Slightly above the minimum height
@@ -56,11 +60,19 @@ export default class WorldGenerator {
         this.scene.add(water);
         // Sky fog
         this.scene.fog = new Fog(0x87ceeb, 100, 1500);
+        // Skybox
+        const skybox = new Sky();
+        skybox.scale.setScalar(this.terrainSize.width);
+        this.scene.add(skybox);
+        // Skybox sun
+        this.sunPosition = new Vector3();
+        this.sunPosition.setFromSphericalCoords(1, Math.PI / 2.5, Math.PI / 4);
+        this.sunDirection = this.sunPosition.clone().normalize();
+        skybox.material.uniforms['sunPosition'].value.copy(this.sunPosition);
     }
 
     setupTerrain() {
         // Generate heightmap using noise generator
-        console.log(`Generating terrain with seed: ${this.terrainSeed}`);
         const heightDataResult = this.noiseGenerator.generateHeightData({
             width: this.heightMapResolution.width,
             height: this.heightMapResolution.height,
@@ -88,12 +100,11 @@ export default class WorldGenerator {
         heightMapTexture.minFilter = LinearFilter;
 
         // Create terrain geometry (Plane for now, maybe later a more complex mesh so we can do culling?)
-        const planeSegments = 255; // Should ideally match heightMapResolution.width/height
         const terrainGeometry = new PlaneGeometry(
             this.terrainSize.width,
-            this.terrainSize.depth,
-            planeSegments,
-            planeSegments
+            this.terrainSize.height,
+            this.planeSegments,
+            this.planeSegments
         );
         terrainGeometry.rotateX(-Math.PI / 2); // Orient plane horizontally
 
@@ -125,14 +136,14 @@ export default class WorldGenerator {
                 // Lighting (basic)
                 uAmbientLightColor: { value: new Color(0x666666) },
                 uDirectionalLightColor: { value: new Color(0xffffff) },
-                uDirectionalLightDirection: { value: new Vector3(0.5, 1, 0.75).normalize() }, // Example light direction
+                uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new Vector3(0.5, 1, 0.75).normalize() },
 
                 // Blending parameters
                 uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
                 uGrassLevel: { value: 0 },          // Top of grass layer
                 uRockLevel: { value: 80 },          // Top of rock layer (start of snow)
                 uSnowLevel: { value: 120 },         // Full snow
-                uBlendRange: { value: 15.0 },       // How far to blend between texture layers
+                uBlendRange: { value: 25.0 },       // How far to blend between texture layers
                 uSlopeThreshold: { value: 0.7 },    // Radians (approx 40 degrees for rock on slopes)
                 uSlopeBlendRange: { value: 0.3 }
             },
@@ -187,67 +198,75 @@ export default class WorldGenerator {
                 varying vec3 vWorldPosition;
                 varying vec3 vViewPosition;
 
+                // --- Simple 2D hash noise function ---
+                float hash(vec2 p) {
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                }
+                float noise(vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    float a = hash(i);
+                    float b = hash(i + vec2(1.0, 0.0));
+                    float c = hash(i + vec2(0.0, 1.0));
+                    float d = hash(i + vec2(1.0, 1.0));
+                    vec2 u = f * f * (3.0 - 2.0 * f);
+                    return mix(a, b, u.x) +
+                        (c - a) * u.y * (1.0 - u.x) +
+                        (d - b) * u.x * u.y;
+                }
 
                 // Function to compute normal using derivatives (requires standard derivatives extension)
                 vec3 getNormal() {
-                    // Using dFdx/dFdy on world position to get surface normal
-                    // Be careful with signs depending on coordinate system / winding.
                     return normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
                 }
-                
-                float getTextureWeight(float levelLow, float levelHigh, float currentVal, float blend) {
-                    float w = smoothstep(levelLow - blend, levelLow, currentVal) * 
-                              (1.0 - smoothstep(levelHigh, levelHigh + blend, currentVal));
-                    return w;
-                }
-
 
                 void main() {
                     vec3 normal = getNormal();
-                    
+
                     // Texture blending based on height
                     vec2 repeatedUv = vUv * uTextureRepeat;
-                    vec4 sandColor = texture2D(uSandTexture, repeatedUv);
-                    vec4 grassColor = texture2D(uGrassTexture, repeatedUv);
-                    vec4 rockColor = texture2D(uRockTexture, repeatedUv);
-                    vec4 snowColor = texture2D(uSnowTexture, repeatedUv);
+                    //vec4 sandColor = texture2D(uSandTexture, repeatedUv);
+                    //vec4 grassColor = texture2D(uGrassTexture, repeatedUv);
+                    //vec4 rockColor = texture2D(uRockTexture, repeatedUv);
+                    //vec4 snowColor = texture2D(uSnowTexture, repeatedUv);
 
-                    float h = vHeight; // Using the interpolated world height
+                    // Add noise-based UV offset for texture variation
+                    float uvNoise = noise(vUv * 50.0) * 0.5; // Adjust scale and strength as needed
+                    vec2 variedUv = repeatedUv + uvNoise;
+
+                    vec4 sandColor = texture2D(uSandTexture, variedUv);
+                    vec4 grassColor = texture2D(uGrassTexture, variedUv + 0.13); // Offset each layer differently
+                    vec4 rockColor = texture2D(uRockTexture, variedUv + 0.27);
+                    vec4 snowColor = texture2D(uSnowTexture, variedUv + 0.41);
+
+                    float h = vHeight;
+
+                    // --- Add noise to blend transitions ---
+                    float blendNoise = (noise(vUv * 20.0) - 0.5) * uBlendRange * 0.7; // scale noise and strength
+
+                    // Sand/Grass blend
+                    float grassWeight = smoothstep(uSandLevel - uBlendRange + blendNoise, uSandLevel + blendNoise, h) *
+                                        (1.0 - smoothstep(uGrassLevel + blendNoise, uGrassLevel + uBlendRange + blendNoise, h));
+                    grassWeight = clamp(grassWeight, 0.0, 1.0);
+
+                    // Rock layer (height based)
+                    float rockHeightWeight = smoothstep(uGrassLevel - uBlendRange + blendNoise, uGrassLevel + blendNoise, h) *
+                                            (1.0 - smoothstep(uRockLevel + blendNoise, uRockLevel + uBlendRange + blendNoise, h));
+
+                    // Rock layer (slope based)
+                    float slope = acos(clamp(normal.y, 0.0, 1.0));
+                    float rockSlopeWeight = smoothstep(uSlopeThreshold - uSlopeBlendRange, uSlopeThreshold, slope);
+
+                    float totalRockWeight = max(rockHeightWeight, rockSlopeWeight);
+
+                    // Snow layer
+                    float snowWeight = smoothstep(uRockLevel - uBlendRange + blendNoise, uRockLevel + blendNoise, h);
 
                     // Layered blending: start with a base and mix upwards
                     vec3 finalColor = sandColor.rgb;
-
-                    float grassMix = smoothstep(uSandLevel - uBlendRange, uSandLevel + uBlendRange, h) *
-                                     (1.0 - smoothstep(uGrassLevel - uBlendRange, uGrassLevel + uBlendRange, h));
-                    grassMix = clamp(grassMix, 0.0, 1.0); // Ensure it's between 0 and 1 before mixing
-                                     
-                    // If h is between sandLevel and grassLevel, grassMix should be 1.
-                    // If h is higher than grassLevel, grassMix should fade out.
-                    // If h is lower than sandLevel, grassMix should fade out.
-                    
-                    // Simplified blending:
-                    // Sand dominates at low levels
-                    // Grass layer
-                    float grassWeight = smoothstep(uSandLevel - uBlendRange, uSandLevel, h) * 
-                                        (1.0 - smoothstep(uGrassLevel, uGrassLevel + uBlendRange, h));
                     finalColor = mix(finalColor, grassColor.rgb, grassWeight);
-
-                    // Rock layer (height based)
-                    float rockHeightWeight = smoothstep(uGrassLevel - uBlendRange, uGrassLevel, h) *
-                                           (1.0 - smoothstep(uRockLevel, uRockLevel + uBlendRange, h));
-                    
-                    // Rock layer (slope based)
-                    float slope = acos(clamp(normal.y, 0.0, 1.0)); // 0 (flat) to PI/2 (vertical)
-                    float rockSlopeWeight = smoothstep(uSlopeThreshold - uSlopeBlendRange, uSlopeThreshold, slope);
-                    
-                    float totalRockWeight = max(rockHeightWeight, rockSlopeWeight);
                     finalColor = mix(finalColor, rockColor.rgb, totalRockWeight);
-                    
-                    // Snow layer
-                    float snowWeight = smoothstep(uRockLevel - uBlendRange, uRockLevel, h);
-                                      // Optional: (1.0 - smoothstep(uSnowLevel, uSnowLevel + uBlendRange, h)); for a top cap
                     finalColor = mix(finalColor, snowColor.rgb, snowWeight);
-
 
                     // Basic lighting
                     float diffuseStrength = max(0.0, dot(normal, uDirectionalLightDirection));
@@ -273,11 +292,6 @@ export default class WorldGenerator {
         this.ground = {
             mesh: groundMesh,
             rawHeightData: heightDataResult.data // Store for optimised height checks
-            // Not required, tho could be useful for debugging or for structure generation so I'm leaving it here
-            // heightMapResolution: this.heightMapResolution, 
-            // terrainSize: this.terrainSize,
-            // minHeight: this.terrainHeightLimits.min,
-            // maxHeight: this.terrainHeightLimits.max
         };
     }
 
@@ -286,9 +300,9 @@ export default class WorldGenerator {
         const spawnHeight = this.getTerrainHeightAt(0, 0);
         this.spawn = new Mesh(
             new CylinderGeometry(20, 20, 30, 12), // Cylinder for spawn point
-            new MeshBasicMaterial({ color: 0x888888 })
+            new MeshLambertMaterial({ color: 0x888888 })
         )
-        this.spawn.position.set(0, spawnHeight + 15, 0); // Center on terrain
+        this.spawn.position.set(0, spawnHeight + 5, 0); // Center on terrain
         this.spawn.castShadow = true;
         this.spawn.receiveShadow = true;
         this.collisionGroup.add(this.spawn);
@@ -301,16 +315,13 @@ export default class WorldGenerator {
 
         // Create a directional light (Place it based on the terrain's shader light)
         const directionalLight = new DirectionalLight(0xffffff, 1.0);
-        directionalLight.position.set(
-            this.ground.mesh.material.uniforms.uDirectionalLightDirection.value.x,
-            this.ground.mesh.material.uniforms.uDirectionalLightDirection.value.y,
-            this.ground.mesh.material.uniforms.uDirectionalLightDirection.value.z
-        ).multiplyScalar(100); // Position it far away along the direction vector
+        const sunDir = this.sunDirection ? this.sunDirection : new Vector3(0.5, 1, 0.75).normalize();
+        directionalLight.position.copy(sunDir).multiplyScalar(100);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.set(2048, 2048);
         directionalLight.shadow.camera.near = 0.5;
         directionalLight.shadow.camera.far = this.terrainSize.width;
-        const shadowCamSize = Math.max(this.terrainSize.width, this.terrainSize.depth) / 2;
+        const shadowCamSize = Math.max(this.terrainSize.width, this.terrainSize.height) / 2;
         directionalLight.shadow.camera.left = -shadowCamSize;
         directionalLight.shadow.camera.right = shadowCamSize;
         directionalLight.shadow.camera.top = shadowCamSize;
@@ -364,7 +375,7 @@ export default class WorldGenerator {
         // Standard UVs: (0,0) is bottom-left or top-left. PlaneGeometry UVs (0,0) at one corner.
         // If plane rotated -PI/2 on X, original Y becomes Z.
         // UV.y typically maps to Z. Let's assume standard mapping for now.
-        const v = 1.0 - ((worldZ + this.terrainSize.depth / 2) / this.terrainSize.depth); // Flipped v for typical image coords
+        const v = 1.0 - ((worldZ + this.terrainSize.height / 2) / this.terrainSize.height); // Flipped v for typical image coords
 
         if (u < 0 || u > 1 || v < 0 || v > 1) {
             return this.terrainHeightLimits.min; // Out of bounds
@@ -398,14 +409,13 @@ export default class WorldGenerator {
         return this.terrainHeightLimits.min + interpolated_h_norm * (this.terrainHeightLimits.max - this.terrainHeightLimits.min);
     }
 
-
     getWorldBounds() {
         // Returns the world bounds based on terrain size and height limits
         return {
             minX: -this.terrainSize.width / 2,
             maxX: this.terrainSize.width / 2,
-            minZ: -this.terrainSize.depth / 2,
-            maxZ: this.terrainSize.depth / 2,
+            minZ: -this.terrainSize.height / 2,
+            maxZ: this.terrainSize.height / 2,
             minY: this.terrainHeightLimits.min,
             maxY: this.terrainHeightLimits.max
         };

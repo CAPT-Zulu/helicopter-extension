@@ -53,7 +53,7 @@ export default class HelicopterController {
 
     reset() {
         // Reset initial positions and orientation
-        const initialPosition = new Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS + 0.01: 50, 0);
+        const initialPosition = new Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 20 + HELICOPTER_RADIUS + 1.5: 45 + 1.5, 0);
         const initialOrientation = new Quaternion().setFromEuler(new Euler(0, 0, 0, 'YXZ'));
         // Reset camera position and orientation
         this.camera.position.copy(initialPosition);
