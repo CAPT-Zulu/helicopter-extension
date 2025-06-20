@@ -1,17 +1,15 @@
-import { Group, Mesh, PlaneGeometry, CylinderGeometry, MeshLambertMaterial, Fog, DataTexture, RedFormat, FloatType, LinearFilter, TextureLoader, RepeatWrapping, ShaderMaterial, Vector2, Color, Vector3, AmbientLight, DirectionalLight } from 'three';
+import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
-// import StructureFactory from './Structures.js';
 
 export default class WorldGenerator {
     constructor(scene) {
         // Set scene
         this.scene = scene;
         this.worldOctree = null;
-        // this.structureFactory = new StructureFactory();
-        this.collisionGroup = new Group();
+        this.collisionGroup = new THREE.Group();
         this.ground = null; // This will now hold mesh and height data (Maybe more in the future)
         this.spawn = null;
         this.sunPosition = null;
@@ -46,26 +44,25 @@ export default class WorldGenerator {
         this.setupEnvironment();
         this.setupSpawn();
         this.setupOctree();
-        // this.setupStructures();
     }
 
     setupEnvironment() {
         // Water plane
-        const water = new Mesh(
-            new PlaneGeometry(this.terrainSize.width * 6, this.terrainSize.height * 6, 16, 16),
-            new MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
+        const water = new THREE.Mesh(
+            new THREE.PlaneGeometry(this.terrainSize.width * 6, this.terrainSize.height * 6, 16, 16),
+            new THREE.MeshLambertMaterial({ color: 0x006ba0, transparent: true, opacity: 0.7 })
         )
         water.position.y = this.terrainHeightLimits.min + 1; // Slightly above the minimum height
         water.rotation.x = -0.5 * Math.PI;
         this.scene.add(water);
         // Sky fog
-        this.scene.fog = new Fog(0x87ceeb, 100, 1500);
+        this.scene.fog = new THREE.Fog(0x87ceeb, 100, 1500);
         // Skybox
         const skybox = new Sky();
         skybox.scale.setScalar(this.terrainSize.width);
         this.scene.add(skybox);
         // Skybox sun
-        this.sunPosition = new Vector3();
+        this.sunPosition = new THREE.Vector3();
         this.sunPosition.setFromSphericalCoords(1, Math.PI / 2.5, Math.PI / 4);
         this.sunDirection = this.sunPosition.clone().normalize();
         skybox.material.uniforms['sunPosition'].value.copy(this.sunPosition);
@@ -88,19 +85,19 @@ export default class WorldGenerator {
             );
         }
         // Create a DataTexture from the height data
-        const heightMapTexture = new DataTexture(
+        const heightMapTexture = new THREE.DataTexture(
             heightDataResult.data,
             heightDataResult.width,
             heightDataResult.height,
-            RedFormat, // Using RedFormat as we only need one channel for height
-            FloatType  // Using FloatType for precision
+            THREE.RedFormat, // Using RedFormat as we only need one channel for height
+            THREE.FloatType  // Using FloatType for precision
         );
         heightMapTexture.needsUpdate = true;
-        heightMapTexture.magFilter = LinearFilter; // Smooth interpolation
-        heightMapTexture.minFilter = LinearFilter;
+        heightMapTexture.magFilter = THREE.LinearFilter; // Smooth interpolation
+        heightMapTexture.minFilter = THREE.LinearFilter;
 
         // Create terrain geometry (Plane for now, maybe later a more complex mesh so we can do culling?)
-        const terrainGeometry = new PlaneGeometry(
+        const terrainGeometry = new THREE.PlaneGeometry(
             this.terrainSize.width,
             this.terrainSize.height,
             this.planeSegments,
@@ -109,17 +106,17 @@ export default class WorldGenerator {
         terrainGeometry.rotateX(-Math.PI / 2); // Orient plane horizontally
 
         // Load textures for terrain layers
-        const textureLoader = new TextureLoader();
+        const textureLoader = new THREE.TextureLoader();
         const tSand = textureLoader.load('textures/sand.jpg');
         const tGrass = textureLoader.load('textures/grass.jpg');
         const tRock = textureLoader.load('textures/stone.jpg');
         const tSnow = textureLoader.load('textures/snow.jpg');
         [tSand, tGrass, tRock, tSnow].forEach(t => {
-            t.wrapS = t.wrapT = RepeatWrapping; // Repeat textures
+            t.wrapS = t.wrapT = THREE.RepeatWrapping; // Repeat textures
         });
 
         // Setup the custom shader material for terrain (Based off SebLague's terrain shader)
-        const terrainMaterial = new ShaderMaterial({
+        const terrainMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 // Heightmap and displacement
                 uHeightMap: { value: heightMapTexture },
@@ -131,12 +128,12 @@ export default class WorldGenerator {
                 uGrassTexture: { value: tGrass },
                 uRockTexture: { value: tRock },
                 uSnowTexture: { value: tSnow },
-                uTextureRepeat: { value: new Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
+                uTextureRepeat: { value: new THREE.Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
 
                 // Lighting (basic)
-                uAmbientLightColor: { value: new Color(0x666666) },
-                uDirectionalLightColor: { value: new Color(0xffffff) },
-                uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new Vector3(0.5, 1, 0.75).normalize() },
+                uAmbientLightColor: { value: new THREE.Color(0x666666) },
+                uDirectionalLightColor: { value: new THREE.Color(0xffffff) },
+                uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new THREE.Vector3(0.5, 1, 0.75).normalize() },
 
                 // Blending parameters
                 uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
@@ -282,7 +279,7 @@ export default class WorldGenerator {
         });
 
         // Create the terrain mesh
-        const groundMesh = new Mesh(terrainGeometry, terrainMaterial);
+        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
         groundMesh.receiveShadow = true;
         groundMesh.castShadow = true;
 
@@ -298,9 +295,9 @@ export default class WorldGenerator {
     setupSpawn() {
         // Create a spawn point at the center of the terrain
         const spawnHeight = this.getTerrainHeightAt(0, 0);
-        this.spawn = new Mesh(
-            new CylinderGeometry(20, 20, 30, 12), // Cylinder for spawn point
-            new MeshLambertMaterial({ color: 0x888888 })
+        this.spawn = new THREE.Mesh(
+            new THREE.CylinderGeometry(20, 20, 30, 12), // Cylinder for spawn point
+            new THREE.MeshLambertMaterial({ color: 0x888888 })
         )
         this.spawn.position.set(0, spawnHeight + 5, 0); // Center on terrain
         this.spawn.castShadow = true;
@@ -310,12 +307,12 @@ export default class WorldGenerator {
 
     setupLights() {
         // Create ambient light (Maybe, shader kinda handles it, maybe for structures and other objects)
-        const ambientLight = new AmbientLight(0xffffff, 0.2);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
         this.scene.add(ambientLight);
 
         // Create a directional light (Place it based on the terrain's shader light)
-        const directionalLight = new DirectionalLight(0xffffff, 1.0);
-        const sunDir = this.sunDirection ? this.sunDirection : new Vector3(0.5, 1, 0.75).normalize();
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const sunDir = this.sunDirection ? this.sunDirection : new THREE.Vector3(0.5, 1, 0.75).normalize();
         directionalLight.position.copy(sunDir).multiplyScalar(100);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.set(2048, 2048);
@@ -372,7 +369,7 @@ export default class WorldGenerator {
         // Convert world coordinates to UV coordinates (0-1 range) for the heightmap
         const u = (worldX + this.terrainSize.width / 2) / this.terrainSize.width;
         // Z-axis might be flipped depending on plane orientation vs texture coords
-        // Standard UVs: (0,0) is bottom-left or top-left. PlaneGeometry UVs (0,0) at one corner.
+        // Standard UVs: (0,0) is bottom-left or top-left. THREE.PlaneGeometry UVs (0,0) at one corner.
         // If plane rotated -PI/2 on X, original Y becomes Z.
         // UV.y typically maps to Z. Let's assume standard mapping for now.
         const v = 1.0 - ((worldZ + this.terrainSize.height / 2) / this.terrainSize.height); // Flipped v for typical image coords

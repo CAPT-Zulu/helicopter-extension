@@ -1,4 +1,4 @@
-import { Scene, Color, WebGLRenderer, PerspectiveCamera, ACESFilmicToneMapping} from 'three';
+import { Scene, Color, WebGLRenderer, PerspectiveCamera, ACESFilmicToneMapping } from 'three';
 import WorldGenerator from './WorldGenerator';
 
 export default class SceneManager {
