@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { BoxGeometry, MeshBasicMaterial, CylinderGeometry, Mesh, Group } from 'three';
 
 class StructureFactory {
     constructor() {
@@ -7,7 +7,7 @@ class StructureFactory {
             this.createTunnel,
             this.createWireframeCubeGrid,
             this.createBridge,
-            this.createCoolerTower
+                this.createCoolerTower
         ];
     }
 
@@ -17,26 +17,26 @@ class StructureFactory {
     }
 
     createSkyscraper() {
-        const geometry = new THREE.BoxGeometry(5, 200, 5);
-        const material = new THREE.MeshBasicMaterial({ color: 0x8888ff, wireframe: false });
-        return new THREE.Mesh(geometry, material);
+        const geometry = new BoxGeometry(5, 200, 5);
+        const material = new MeshBasicMaterial({ color: 0x8888ff, wireframe: false });
+        return new Mesh(geometry, material);
     }
 
     createTunnel() {
-        const geometry = new THREE.CylinderGeometry(8, 8, 30, 32, 1, true);
-        const material = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, wireframe: false, side: THREE.DoubleSide });
-        return new THREE.Mesh(geometry, material);
+        const geometry = new CylinderGeometry(8, 8, 30, 32, 1, true);
+        const material = new MeshBasicMaterial({ color: 0xaaaaaa, wireframe: false, side: DoubleSide });
+        return new Mesh(geometry, material);
     }
 
     createWireframeCubeGrid() {
-        const group = new THREE.Group();
+        const group = new Group();
         const size = 3, spacing = 12;
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+        const material = new MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
                 for (let z = -1; z <= 1; z++) {
-                    const geometry = new THREE.BoxGeometry(size, size, size);
-                    const mesh = new THREE.Mesh(geometry, material);
+                    const geometry = new BoxGeometry(size, size, size);
+                    const mesh = new Mesh(geometry, material);
                     mesh.position.set(x * spacing, y * spacing, z * spacing);
                     group.add(mesh);
                 }
@@ -46,19 +46,19 @@ class StructureFactory {
     }
 
     createBridge() {
-        const group = new THREE.Group();
+        const group = new Group();
         // Deck
-        const deckGeometry = new THREE.BoxGeometry(30, 2, 6);
-        const deckMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
-        const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+        const deckGeometry = new BoxGeometry(30, 2, 6);
+        const deckMaterial = new MeshBasicMaterial({ color: 0x8B4513 });
+        const deck = new Mesh(deckGeometry, deckMaterial);
         group.add(deck);
 
         // Pillars
-        const pillarGeometry = new THREE.BoxGeometry(2, 10, 2);
-        const pillarMaterial = new THREE.MeshBasicMaterial({ color: 0x555555 });
-        const pillar1 = new THREE.Mesh(pillarGeometry, pillarMaterial);
+        const pillarGeometry = new BoxGeometry(2, 10, 2);
+        const pillarMaterial = new MeshBasicMaterial({ color: 0x555555 });
+        const pillar1 = new Mesh(pillarGeometry, pillarMaterial);
         pillar1.position.set(-10, -6, 0);
-        const pillar2 = new THREE.Mesh(pillarGeometry, pillarMaterial);
+        const pillar2 = new Mesh(pillarGeometry, pillarMaterial);
         pillar2.position.set(10, -6, 0);
         group.add(pillar1, pillar2);
 
@@ -66,9 +66,9 @@ class StructureFactory {
     }
 
     createCoolerTower() {
-        const geometry = new THREE.CylinderGeometry(6, 12, 20, 32, 1, false);
-        const material = new THREE.MeshBasicMaterial({ color: 0xcccccc, wireframe: false });
-        return new THREE.Mesh(geometry, material);
+        const geometry = new CylinderGeometry(6, 12, 20, 32, 1, false);
+        const material = new MeshBasicMaterial({ color: 0xcccccc, wireframe: false });
+        return new Mesh(geometry, material);
     }
 }
 

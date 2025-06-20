@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Sphere, Vector3, Quaternion, Euler } from 'three';
 
 // --- ROTATIONAL CONTROL PARAMETERS ---
 // How quickly the helicopter tries to align to the target orientation. Lower = more lag/heft.
@@ -36,13 +36,13 @@ export default class HelicopterController {
         this.scene = scene;
 
         // Helicopter Collider
-        this.helicopterCollider = new THREE.Sphere(new THREE.Vector3(0, 0, 0), HELICOPTER_RADIUS);
+        this.helicopterCollider = new Sphere(new Vector3(0, 0, 0), HELICOPTER_RADIUS);
 
         // Local States
-        this.velocity = new THREE.Vector3();
-        this.acceleration = new THREE.Vector3();
-        this.targetAngle = new THREE.Quaternion();
-        this.inputEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+        this.velocity = new Vector3();
+        this.acceleration = new Vector3();
+        this.targetAngle = new Quaternion();
+        this.inputEuler = new Euler(0, 0, 0, 'YXZ');
         this.keys = { w: false, s: false, a: false, d: false };
         this.isMouseLocked = false;
 
@@ -53,8 +53,8 @@ export default class HelicopterController {
 
     reset() {
         // Reset initial positions and orientation
-        const initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS + 0.01: 50, 0);
-        const initialOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
+        const initialPosition = new Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 25 + HELICOPTER_RADIUS + 0.01: 50, 0);
+        const initialOrientation = new Quaternion().setFromEuler(new Euler(0, 0, 0, 'YXZ'));
         // Reset camera position and orientation
         this.camera.position.copy(initialPosition);
         this.camera.quaternion.copy(initialOrientation);
@@ -181,7 +181,7 @@ export default class HelicopterController {
         // 3. Calculate Forces
         this.acceleration.set(0, 0, 0); // Reset acceleration
         // Get helicopter's local up direction in world space
-        const localUp = new THREE.Vector3(0, 1, -0.25); // Add slight forward tilt
+        const localUp = new Vector3(0, 1, -0.25); // Add slight forward tilt
         localUp.applyQuaternion(this.camera.quaternion);
         // Calculate thrust based on key presses
         let thrustMagnitude = (this.keys.w ? MAIN_THRUST_FORCE : 0) - (this.keys.s ? DOWNWARD_THRUST_FORCE : 0);
@@ -191,7 +191,7 @@ export default class HelicopterController {
             this.applyForce(thrustForce);
         }
         // Gravity (always downwards)
-        const gravity = new THREE.Vector3(0, -GRAVITY_STRENGTH * HELICOPTER_MASS, 0);
+        const gravity = new Vector3(0, -GRAVITY_STRENGTH * HELICOPTER_MASS, 0);
         this.applyForce(gravity);
 
         // 4. Update Velocity & Position

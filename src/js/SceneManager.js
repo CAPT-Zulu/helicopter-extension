@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Scene, Color, WebGLRenderer, PerspectiveCamera, ACESFilmicToneMapping} from 'three';
 import WorldGenerator from './WorldGenerator';
 
 export default class SceneManager {
@@ -29,21 +29,21 @@ export default class SceneManager {
 
     buildScene() {
         // Create a new scene with a light blue background
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
+        const scene = new Scene();
+        scene.background = new Color(0x87ceeb);
         return scene;
     }
 
     buildRenderer({ width, height }) {
         // Create a WebGL renderer
-        const renderer = new THREE.WebGLRenderer({
+        const renderer = new WebGLRenderer({
             canvas: this.canvas,
             antialias: true
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
         renderer.shadowMap.enabled = true;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMapping = ACESFilmicToneMapping;
         return renderer;
     }
 
@@ -53,7 +53,7 @@ export default class SceneManager {
         const fov = 90;
         const nearPlane = 0.1;
         const farPlane = 2000;
-        const camera = new THREE.PerspectiveCamera(fov, aspectRatio, nearPlane, farPlane);
+        const camera = new PerspectiveCamera(fov, aspectRatio, nearPlane, farPlane);
         return camera;
     }
 

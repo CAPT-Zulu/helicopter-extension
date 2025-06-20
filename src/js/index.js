@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Clock } from 'three';
 import SceneManager from './SceneManager.js';
 import HelicopterController from './HelicopterController.js';
 
@@ -27,7 +27,7 @@ function init() {
     // Set up Weapon and Enemy AI systems (TODO)
 
     // Initiate the clock and start animation loop
-    clock = new THREE.Clock();
+    clock = new Clock();
     animate();
 }
 
