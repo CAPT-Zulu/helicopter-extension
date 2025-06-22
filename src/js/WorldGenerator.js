@@ -7,11 +7,13 @@ import alea from 'alea';
 
 export default class WorldGenerator {
     constructor(scene) {
-        // Set scene
+        // Set the scene
         this.scene = scene;
+
+        // World elements
         this.worldOctree = null;
         this.collisionGroup = new THREE.Group();
-        this.ground = null; // This will now hold mesh and height data (Maybe more in the future)
+        this.ground = null;
         this.spawn = null;
         this.sunPosition = null;
         this.sunDirection = null;
@@ -26,7 +28,7 @@ export default class WorldGenerator {
 
         // Noise parameters
         this.noiseParams = {
-            scale: 600,        // Lower = more zoomed in, more features. Higher = smoother, larger features.
+            scale: 600,         // Lower = more zoomed in, more features. Higher = smoother, larger features.
             octaves: 5,         // Number of noise layers (more = more detail, but slower)
             persistence: 0.5,   // How much detail is added or removed at each octave (0-1)
             lacunarity: 2.0,    // How much detail is added or removed at each octave (typically > 1)
@@ -38,8 +40,7 @@ export default class WorldGenerator {
         this.debugOctreeHelper = false; // Show octree helper in scene
         this.debugSaveNoiseMap = false; // Save generated heightmap to PNG for debugging
 
-
-        // Setup world / environment
+        // Setup world and environment
         this.setupTerrain();
         this.setupLights();
         this.setupEnvironment();
