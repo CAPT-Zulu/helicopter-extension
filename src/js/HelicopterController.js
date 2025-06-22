@@ -27,16 +27,18 @@ const HELICOPTER_MASS = 0.8;
 const HELICOPTER_RADIUS = 2;
 
 export default class HelicopterController {
-    constructor(camera, domElement, scene, worldGenerator) {
+    constructor(camera, domElement, worldGenerator) {
         // Controller Elements
         this.camera = camera;
         this.domElement = domElement;
         this.worldGenerator = worldGenerator;
-        this.worldOctree = this.worldGenerator.getWorldOctree(); // Could not be avail?
-        this.scene = scene;
-
-        // Helicopter Collider
+        this.worldOctree = worldGenerator ? worldGenerator.getWorldOctree() : null;
         this.helicopterCollider = new THREE.Sphere(new THREE.Vector3(0, 0, 0), HELICOPTER_RADIUS);
+
+        // Should I have an error if required elements are not provided?
+        if (!this.camera || !this.domElement || !this.worldGenerator) {
+            throw new Error("HelicopterController requires camera, domElement, and worldGenerator.");
+        }
 
         // Local States
         this.velocity = new THREE.Vector3();
@@ -53,7 +55,7 @@ export default class HelicopterController {
 
     reset() {
         // Reset initial positions and orientation
-        const initialPosition = new THREE.Vector3(0, this.worldGenerator ? this.worldGenerator.getTerrainHeightAt(0, 0) + 20 + HELICOPTER_RADIUS + 1.5: 45 + 1.5, 0);
+        const initialPosition = new THREE.Vector3(0, this.worldGenerator.getTerrainHeightAt(0, 0) + 20 + HELICOPTER_RADIUS + 1.5, 0);
         const initialOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
         // Reset camera position and orientation
         this.camera.position.copy(initialPosition);
@@ -207,7 +209,7 @@ export default class HelicopterController {
         this.helicopterCollider.center.copy(potentialPosition);
 
         // First Check if a collision has occurred with scene objects
-        const collisionResult = this.worldOctree.sphereIntersect(this.helicopterCollider);
+        const collisionResult = this.worldOctree ? this.worldOctree.collision(this.helicopterCollider) : null;
         if (collisionResult) {
             // If collision detected, adjust position to resolve penetration
             potentialPosition.addScaledVector(collisionResult.normal, collisionResult.depth);

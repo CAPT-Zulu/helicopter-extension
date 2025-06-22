@@ -21,12 +21,11 @@ function init() {
 
     // Set up the scene
     sceneManager = new SceneManager(canvas);
-    
+
     // Set up the helicopter controller
     helicopterController = new HelicopterController(
         sceneManager.getCamera(),
         canvas,
-        sceneManager.getScene(),
         sceneManager.getWorldGenerator()
     );
 
@@ -61,4 +60,26 @@ if (document.readyState === 'loading') {
     init();
 }
 
-// TODO: reimplement proper disposal
+// Handle scene disposal on page unload (Unsure if this is required?)
+window.addEventListener('beforeunload', () => {
+    let scene = sceneManager.getScene();
+    let renderer = sceneManager.getRenderer();
+    if (renderer) {
+        renderer.dispose();
+    }
+    if (scene) {
+        sc.traverse((object) => {
+            if (object.geometry) object.geometry.dispose();
+            if (object.material) {
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(mat => mat.dispose());
+                } else {
+                    object.material.dispose();
+                }
+            }
+        });
+    }
+    if (helicopterController) {
+        helicopterController.dispose();
+    }
+});
