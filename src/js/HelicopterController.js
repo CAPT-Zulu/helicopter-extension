@@ -209,7 +209,7 @@ export default class HelicopterController {
         this.helicopterCollider.center.copy(potentialPosition);
 
         // First Check if a collision has occurred with scene objects
-        const collisionResult = this.worldOctree ? this.worldOctree.collision(this.helicopterCollider) : null;
+        const collisionResult = this.worldOctree ? this.worldOctree.sphereIntersect(this.helicopterCollider) : null;
         if (collisionResult) {
             // If collision detected, adjust position to resolve penetration
             potentialPosition.addScaledVector(collisionResult.normal, collisionResult.depth);
