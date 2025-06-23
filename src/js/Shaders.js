@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 // Terrain vertex and fragment shaders
 const _TerrainVS = `
     uniform sampler2D uHeightMap;
@@ -172,121 +170,30 @@ const _TerrainFS = `
     }
 `;
 
-function generateBlendedMaterial(textures, baseMaterial = new THREE.MeshLambertMaterial()) {
-    function format(n) {
-        return n === (n | 0) ? `${n}.0` : `${n}`;
-    }
-
-    let uniforms = {};
-    let declarations = '';
-    let blendingCode = '';
-
-    // Base texture setup
-    const baseTex = textures[0].texture;
-    const baseRepeat = baseTex.repeat;
-    const baseOffset = baseTex.offset;
-    uniforms[`texture_0`] = { value: baseTex };
-    declarations += `uniform sampler2D texture_0;\n`;
-    blendingCode += `
-        vec4 color = texture2D(texture_0, MyvUv * vec2(${format(baseRepeat.x)}, ${format(baseRepeat.y)}) + vec2(${format(baseOffset.x)}, ${format(baseOffset.y)}));`;
-
-    for (let i = 1; i < textures.length; i++) {
-        const tex = textures[i].texture;
-        const repeat = tex.repeat;
-        const offset = tex.offset;
-        const uniformName = `texture_${i}`;
-        uniforms[uniformName] = { value: tex };
-        declarations += `uniform sampler2D ${uniformName};\n`;
-
-        let blendExpr = '1.0'; // Default blend factor
-
-        if (textures[i].levels) {
-            const [minOut, maxOut, minIn, maxIn] = textures[i].levels.map(format);
-            blendExpr = `1.0 - smoothstep(${minOut}, ${maxOut}, vPosition.z) + smoothstep(${minIn}, ${maxIn}, vPosition.z)`;
-        } else if (textures[i].glsl) {
-            blendExpr = textures[i].glsl;
-        }
-
-        blendingCode += `
-        color = mix(
-            texture2D(${uniformName}, MyvUv * vec2(${format(repeat.x)}, ${format(repeat.y)}) + vec2(${format(offset.x)}, ${format(offset.y)})),
-            color,
-            clamp(${blendExpr}, 0.0, 1.0)
-        );`;
-    }
-
-    const varyings = `
-        varying vec2 MyvUv;
-        varying vec3 vPosition;
-        varying vec3 myNormal;
-    `;
-
-    const blendingLogic = `
-        float slope = acos(clamp(dot(normalize(myNormal), vec3(0.0, 1.0, 0.0)), -1.0, 1.0));
-        ${blendingCode}
-        diffuseColor.rgb = color.rgb;
-    `;
-
-    baseMaterial.onBeforeCompile = shader => {
-        Object.assign(shader.uniforms, uniforms);
-
-        shader.vertexShader = shader.vertexShader.replace(
-            '#include <common>',
-            `${varyings}\n#include <common>`
-        );
-        shader.vertexShader = shader.vertexShader.replace(
-            '#include <uv_vertex>',
-            `
-                MyvUv = uv;
-                vPosition = position;
-                myNormal = normal;
-                #include <uv_vertex>
-            `
-        );
-
-        shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <common>',
-            `${declarations}\n${varyings}\n#include <common>`
-        );
-
-        shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <map_fragment>',
-            blendingLogic
-        );
-    };
-
-    return baseMaterial;
-}
-
 // Terrain Material
 class TerrainMaterial {
-    constructor({ baseMaterial, textures, heightMap, heightLimits }) {
+    constructor({ textures, baseMaterial }) {
         this.textures = textures;
-        this.heightMap = heightMap;
-        this.heightLimits = heightLimits;
         this.material = baseMaterial;
 
-        this._patchMaterial();
+        this.extendMaterial();
         return this.material;
     }
 
-    _patchMaterial() {
+    extendMaterial() {
         const mat = this.material;
         const textures = this.textures;
-        const heightMap = this.heightMap;
-        const [minH, maxH] = [this.heightLimits.min, this.heightLimits.max];
 
         mat.onBeforeCompile = (shader) => {
             // Inject varyings + uniforms
-            shader.uniforms.heightMap = { value: heightMap };
-            shader.uniforms.time = { value: 0 }; // Optional, for animation (Later use)
+            //shader.uniforms.time = { value: 0 }; // Example, maybe used in future
 
             // Add texture uniforms
             textures.forEach((tex, i) => {
                 shader.uniforms[`tex${i}`] = { value: tex.texture };
             });
 
-            // Vertex shader injection
+            // Vertex shader injection (For passing position and normal to fragment shader)
             shader.vertexShader = shader.vertexShader.replace(
                 '#include <common>',
                 `
@@ -294,10 +201,8 @@ class TerrainMaterial {
                 varying vec3 vPositionW;
                 varying vec3 vNormalW;
                 varying vec2 vUvCustom;
-                uniform float time;
                 `
             );
-
             shader.vertexShader = shader.vertexShader.replace(
                 '#include <begin_vertex>',
                 `
@@ -308,7 +213,7 @@ class TerrainMaterial {
                 `
             );
 
-            // Fragment shader injection
+            // Fragment shader injection (Handle texture blending)
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <common>',
                 `
@@ -316,21 +221,16 @@ class TerrainMaterial {
                 varying vec3 vPositionW;
                 varying vec3 vNormalW;
                 varying vec2 vUvCustom;
-                uniform sampler2D heightMap;
                 ${textures.map((_, i) => `uniform sampler2D tex${i};`).join('\n')}
                 `
             );
-
-            // Replace map fragment for blending
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <map_fragment>',
                 `
                 vec4 tex0 = texture2D(tex0, vUvCustom * 8.0);
                 vec4 blended = tex0;
-
                 ${textures.slice(1).map((tex, i) => {
                     const idx = i + 1;
-                    
                     const [in1, out1, in2, out2] = [tex.levels[0], tex.levels[1], tex.levels[2], tex.levels[3]].map(n => n !== undefined ? n : 0);
                     const slopeCutoff = tex.slopeLimit ?? null;
                     let blendExpr = `smoothstep(${in1.toFixed(1)}, ${out1.toFixed(1)}, vPositionW.y) * (1.0 + smoothstep(${in2.toFixed(1)}, ${out2.toFixed(1)}, vPositionW.y))`;
@@ -339,12 +239,11 @@ class TerrainMaterial {
                     // }
 
                     return `
-                    vec4 tex${idx} = texture2D(tex${idx}, vUvCustom * 8.0);
-                    float blend${idx} = clamp(${blendExpr}, 0.0, 1.0);
-                    blended = mix(blended, tex${idx}, blend${idx});
+                        vec4 tex${idx} = texture2D(tex${idx}, vUvCustom * 8.0);
+                        float blend${idx} = clamp(${blendExpr}, 0.0, 1.0);
+                        blended = mix(blended, tex${idx}, blend${idx});
                     `;
                 }).join('\n')}
-
                 diffuseColor = vec4(blended.rgb * diffuse, opacity);
                 `
             );
@@ -352,8 +251,58 @@ class TerrainMaterial {
     }
 }
 
-export { _TerrainVS, _TerrainFS, generateBlendedMaterial, TerrainMaterial };
+// Water Material
+class WaterMaterial {
+    constructor({ baseMaterial }) {
+        this.material = baseMaterial;
 
+        this.extendMaterial();
+        return this.material;
+    }
 
-// Export the shaders
-// export { _TerrainVS, _TerrainFS };
+    extendMaterial() {
+        const mat = this.material;
+
+        mat.onBeforeCompile = (shader) => {
+            // Inject varyings + uniforms
+            shader.uniforms.time = { value: 0 };
+
+            // Vertex shader injection
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <common>',
+                `
+                #include <common>
+                varying vec2 vUv;
+                varying float vTime;
+                `
+            );
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `
+                vUv = uv;
+                vTime = time;
+                `
+            );
+
+            // Fragment shader injection
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <common>',
+                `
+                #include <common>
+                varying vec2 vUv;
+                varying float vTime;
+                `
+            );
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <map_fragment>',
+                `
+                vec4 waterColor = vec4(0.0, 0.5, 1.0, 1.0);
+                diffuseColor = waterColor * (0.5 + 0.5 * sin(vTime + length(vUv)));
+                `
+            );
+        };
+    }
+}
+
+// Export
+export { TerrainMaterial };

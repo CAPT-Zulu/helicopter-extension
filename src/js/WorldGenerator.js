@@ -5,7 +5,7 @@ import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
 import alea from 'alea';
-import { _TerrainVS, _TerrainFS, TerrainMaterial } from './Shaders.js';
+import { TerrainMaterial } from './Shaders.js';
 
 export default class WorldGenerator {
     constructor(scene) {
@@ -111,17 +111,6 @@ export default class WorldGenerator {
                 `heightmap_seed_${this.terrainSeed}.png`
             );
         }
-        // Create a DataTexture from the height data
-        const heightMapTexture = new THREE.DataTexture(
-            heightDataResult.data,
-            heightDataResult.width,
-            heightDataResult.height,
-            THREE.RedFormat, // Using RedFormat as we only need one channel for height
-            THREE.FloatType  // Using FloatType for precision
-        );
-        heightMapTexture.needsUpdate = true;
-        heightMapTexture.magFilter = THREE.LinearFilter; // Smooth interpolation
-        heightMapTexture.minFilter = THREE.LinearFilter;
 
         // Create terrain geometry (Plane for now, maybe later a more complex mesh so we can do culling?)
         const terrainGeometry = new THREE.PlaneGeometry(
@@ -142,54 +131,7 @@ export default class WorldGenerator {
             t.wrapS = t.wrapT = THREE.RepeatWrapping; // Repeat textures
         });
 
-        // Setup the custom shader material for terrain (Based off SebLague's terrain shader)
-        // const terrainMaterial = new THREE.ShaderMaterial({
-        //     uniforms: {
-        //         // Heightmap and displacement
-        //         uHeightMap: { value: heightMapTexture },
-        //         uMinHeight: { value: this.terrainHeightLimits.min },
-        //         uMaxHeight: { value: this.terrainHeightLimits.max },
-
-        //         // Textures
-        //         uSandTexture: { value: tSand },
-        //         uGrassTexture: { value: tGrass },
-        //         uRockTexture: { value: tRock },
-        //         uSnowTexture: { value: tSnow },
-        //         uTextureRepeat: { value: new THREE.Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
-
-        //         // Lighting (basic)
-        //         uAmbientLightColor: { value: new THREE.Color(0x666666) },
-        //         uDirectionalLightColor: { value: new THREE.Color(0xffffff) },
-        //         uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new THREE.Vector3(0.5, 1, 0.75).normalize() },
-
-        //         // Blending parameters
-        //         uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
-        //         uGrassLevel: { value: 0 },          // Top of grass layer
-        //         uRockLevel: { value: 80 },          // Top of rock layer (start of snow)
-        //         uSnowLevel: { value: 120 },         // Full snow
-        //         uBlendRange: { value: 25.0 },       // How far to blend between texture layers
-        //         uSlopeThreshold: { value: 0.7 },    // Radians (approx 40 degrees for rock on slopes)
-        //         uSlopeBlendRange: { value: 0.3 }
-        //     },
-        //     vertexShader: _TerrainVS,
-        //     fragmentShader: _TerrainFS,
-        //     extensions: {
-        //         derivatives: true
-        //     }
-        // });
-
-        const terrainMaterialPhong = new THREE.MeshPhongMaterial({
-            color: 0xffffff,
-        });
-
-        // const terrainMaterialBlended = generateBlendedMaterial([
-        //     { texture: tSand },
-        //     { texture: tGrass, levels: [-80, -35, 20, 50] },
-        //     { texture: tRock, levels: [20, 50, 60, 85] },
-        //     { texture: tSnow, glsl: '1.0 - smoothstep(65.0 + smoothstep(-256.0, 256.0, vPosition.x) * 10.0, 80.0, vPosition.z)' },
-        //     { texture: tRock, glsl: 'slope > 0.7853981633974483 ? 0.2 : 1.0 - smoothstep(0.47123889803846897, 0.7853981633974483, slope) + 0.2' },
-        // ]);
-
+        // Create terrain material using extended phong shader
         const terrainMaterial = new TerrainMaterial({
             textures: [
                 { texture: tSand, levels: [-100, -80, -35, 20] }, // Sand layer
@@ -197,35 +139,29 @@ export default class WorldGenerator {
                 { texture: tRock, levels: [20, 50, 60, 85] }, // Rock layer
                 { texture: tSnow, levels: [65, 80, 85, 100] }, // Snow layer
             ],
-            heightMap: heightMapTexture,
-            heightLimits: this.terrainHeightLimits,
             baseMaterial: new THREE.MeshPhongMaterial({ color: 0xffffff }),
         });
 
         // Create the terrain mesh
-        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterialPhong);
+        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
         groundMesh.receiveShadow = true;
         groundMesh.castShadow = true;
+        this.ground = {
+            mesh: groundMesh,
+            rawHeightData: heightDataResult.data
+        }
+
+        // Noise offset the terrain mesh using the heightmap data
+        const pos = groundMesh.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const height = this.getTerrainHeightAt(pos.getX(i), pos.getZ(i));
+            pos.setY(i, height); // Set the Y position based on the heightmap
+        }
+        pos.needsUpdate = true;
+        groundMesh.geometry.computeVertexNormals(); // Recompute normals after height changes
 
         // Add ground to the scene
         this.scene.add(groundMesh);
-        // Store ground data
-        this.ground = {
-            mesh: groundMesh,
-            rawHeightData: heightDataResult.data // Store for optimised height checks
-        };
-
-        // Noise offset for the terrain
-        let pos = groundMesh.geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-            const x = pos.getX(i);
-            const z = pos.getZ(i);
-            const height = this.getTerrainHeightAt(x, z);
-            pos.setY(i, height); // Set the Y position based on the heightmap
-        }
-        pos.needsUpdate = true; // Notify Three.js that the position attribute has changed
-        // Compute normals for lighting
-        groundMesh.geometry.computeVertexNormals();
     }
 
     setupSpawn() {
