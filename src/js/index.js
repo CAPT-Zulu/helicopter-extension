@@ -4,6 +4,9 @@ import Stats from 'three/addons/libs/stats.module.js';
 import SceneManager from './SceneManager.js';
 import HelicopterController from './HelicopterController.js';
 
+// Main debugging
+const orbitCameraOverride = true; // Set to true to use OrbitControls for debugging
+
 // Global variables
 let sceneManager;
 let helicopterController;
@@ -23,21 +26,19 @@ function init() {
     // Set up the scene
     sceneManager = new SceneManager(canvas);
 
-    // Set up the helicopter controller
-    // helicopterController = new HelicopterController(
-    //     sceneManager.getCamera(),
-    //     canvas,
-    //     sceneManager.getWorldGenerator()
-    // );
-
-    // Set up debug controls (OrbitControls)
-    const controls = new OrbitControls(sceneManager.getCamera(), canvas);
-    controls.enableDamping = true; // Smooth damping
-    controls.dampingFactor = 0.1; // Damping factor for smooth movement
-    controls.screenSpacePanning = false; // Prevent panning in screen space
-    controls.maxPolarAngle = Math.PI / 2; // Limit vertical rotation
-    controls.minDistance = 100; // Minimum distance from the camera to the target
-    controls.maxDistance = 1000; // Maximum distance from the camera to the target
+    // Set up the controller
+    if (orbitCameraOverride) {
+        // Set up OrbitControls for debugging
+        const controls = new OrbitControls(sceneManager.getCamera(), canvas);
+        controls.minDistance = 100;
+    } else {
+        // Set up the helicopter controller
+        helicopterController = new HelicopterController(
+            sceneManager.getCamera(),
+            canvas,
+            sceneManager.getWorldGenerator()
+        );
+    }
 
     // Set up Weapon and Enemy AI systems (TODO)
 
@@ -55,7 +56,7 @@ function animate() {
     // Try to update systems
     try {
         sceneManager.update();
-        // helicopterController.update(deltaTime);
+        if (!orbitCameraOverride) { helicopterController.update(deltaTime); }
         statsInstance.update();
     } catch (error) {
         console.error("Error during animation loop:", error);
@@ -89,7 +90,7 @@ window.addEventListener('beforeunload', () => {
             }
         });
     }
-    // if (helicopterController) {
-    //     helicopterController.dispose();
-    // }
+    if (helicopterController) {
+        helicopterController.dispose();
+    }
 });
