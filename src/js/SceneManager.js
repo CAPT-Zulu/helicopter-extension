@@ -1,4 +1,4 @@
-import { Scene, Color, WebGLRenderer, PerspectiveCamera, ACESFilmicToneMapping } from 'three';
+import { Scene, Color, WebGLRenderer, PerspectiveCamera, PCFSoftShadowMap } from 'three';
 import WorldGenerator from './WorldGenerator';
 
 export default class SceneManager {
@@ -42,7 +42,8 @@ export default class SceneManager {
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
-        renderer.shadowMap.enabled = false;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = PCFSoftShadowMap;
         return renderer;
     }
 

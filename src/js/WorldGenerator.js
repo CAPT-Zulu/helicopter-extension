@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import NoiseGenerator from './NoiseGenerator.js';
 import alea from 'alea';
+import { _TerrainVS, _TerrainFS, TerrainMaterial } from './Shaders.js';
 
 export default class WorldGenerator {
     constructor(scene) {
@@ -24,12 +26,12 @@ export default class WorldGenerator {
         this.terrainSize = { width: 1024, height: 1024 }; // World units
         this.heightMapResolution = { width: 256, height: 256 }; // Texture resolution
         this.planeSegments = 256; // Number of segments in the terrain plane (should match heightMapResolution for optimal performance)
-        this.terrainHeightLimits = { min: -100, max: 150 }; // World height limits
+        this.terrainHeightLimits = { min: -100, max: 200 }; // World height limits
 
         // Noise parameters
         this.noiseParams = {
-            scale: 600,         // Lower = more zoomed in, more features. Higher = smoother, larger features.
-            octaves: 5,         // Number of noise layers (more = more detail, but slower)
+            scale: 500,         // Lower = more zoomed in, more features. Higher = smoother, larger features.
+            octaves: 4,         // Number of noise layers (more = more detail, but slower)
             persistence: 0.5,   // How much detail is added or removed at each octave (0-1)
             lacunarity: 2.0,    // How much detail is added or removed at each octave (typically > 1)
             offsetX: 0,         // Offset, could be used in the future?
@@ -49,23 +51,46 @@ export default class WorldGenerator {
     }
 
     setupEnvironment() {
+        // HDRI Environment Map
+        new RGBELoader()
+            .setPath('textures/') // Folder containing your HDRI
+            .load('hdri_1k.hdr', (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                this.scene.environment = texture; // For PBR lighting/reflections
+                this.scene.background = texture;  // For skybox background
+            });
         // Water plane
         const water = new THREE.Mesh(
             new THREE.PlaneGeometry(this.terrainSize.width * 3, this.terrainSize.height * 3, 16, 16),
             new THREE.MeshLambertMaterial({ color: 0x006ba0 })
         )
-        water.position.y = this.terrainHeightLimits.min + 1; // Slightly above the minimum height
+        water.position.y = this.terrainHeightLimits.min + 30; // Slightly above the minimum height
         water.rotation.x = -0.5 * Math.PI;
         this.scene.add(water);
-        // Sky fog
-        this.scene.fog = new THREE.Fog(0x87ceeb, 100, 1500);
+        // Sky fog - Color updated to match the hazy, low-sun horizon
+        // this.scene.fog = new THREE.Fog(0xfab274, 100, 1500);
         // Skybox
         const skybox = new Sky();
         skybox.scale.setScalar(this.terrainSize.width);
-        this.scene.add(skybox);
+        // this.scene.add(skybox);
+
+        // Adjust Sky uniforms for a stylized, hazy look
+        const skyUniforms = skybox.material.uniforms;
+        skyUniforms['turbidity'].value = 10;
+        skyUniforms['rayleigh'].value = 3;
+        skyUniforms['mieCoefficient'].value = 0.005;
+        skyUniforms['mieDirectionalG'].value = 0.7;
+
         // Skybox sun
         this.sunPosition = new THREE.Vector3();
-        this.sunPosition.setFromSphericalCoords(1, Math.PI / 2.5, Math.PI / 4);
+
+        // Set sun lower on the horizon for more dramatic, stylized lighting
+        const elevation = 2; // degrees above the horizon
+        const azimuth = 180; // degrees (180 = from the south)
+        const phi = THREE.MathUtils.degToRad(90 - elevation);
+        const theta = THREE.MathUtils.degToRad(azimuth);
+        this.sunPosition.setFromSphericalCoords(1, phi, theta);
+
         this.sunDirection = this.sunPosition.clone().normalize();
         skybox.material.uniforms['sunPosition'].value.copy(this.sunPosition);
     }
@@ -109,179 +134,76 @@ export default class WorldGenerator {
 
         // Load textures for terrain layers
         const textureLoader = new THREE.TextureLoader();
-        const tSand = textureLoader.load('textures/sand.jpg');
-        const tGrass = textureLoader.load('textures/grass.jpg');
-        const tRock = textureLoader.load('textures/stone.jpg');
-        const tSnow = textureLoader.load('textures/snow.jpg');
+        const tSand = textureLoader.load('textures/sand_hd.jpg');
+        const tGrass = textureLoader.load('textures/grass_hd.jpg');
+        const tRock = textureLoader.load('textures/stone_hd.jpg');
+        const tSnow = textureLoader.load('textures/snow_hd.jpg');
         [tSand, tGrass, tRock, tSnow].forEach(t => {
             t.wrapS = t.wrapT = THREE.RepeatWrapping; // Repeat textures
         });
 
         // Setup the custom shader material for terrain (Based off SebLague's terrain shader)
-        const terrainMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                // Heightmap and displacement
-                uHeightMap: { value: heightMapTexture },
-                uMinHeight: { value: this.terrainHeightLimits.min },
-                uMaxHeight: { value: this.terrainHeightLimits.max },
+        // const terrainMaterial = new THREE.ShaderMaterial({
+        //     uniforms: {
+        //         // Heightmap and displacement
+        //         uHeightMap: { value: heightMapTexture },
+        //         uMinHeight: { value: this.terrainHeightLimits.min },
+        //         uMaxHeight: { value: this.terrainHeightLimits.max },
 
-                // Textures
-                uSandTexture: { value: tSand },
-                uGrassTexture: { value: tGrass },
-                uRockTexture: { value: tRock },
-                uSnowTexture: { value: tSnow },
-                uTextureRepeat: { value: new THREE.Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
+        //         // Textures
+        //         uSandTexture: { value: tSand },
+        //         uGrassTexture: { value: tGrass },
+        //         uRockTexture: { value: tRock },
+        //         uSnowTexture: { value: tSnow },
+        //         uTextureRepeat: { value: new THREE.Vector2(100.0, 100.0) }, // How many times textures repeat over the terrain
 
-                // Lighting (basic)
-                uAmbientLightColor: { value: new THREE.Color(0x666666) },
-                uDirectionalLightColor: { value: new THREE.Color(0xffffff) },
-                uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new THREE.Vector3(0.5, 1, 0.75).normalize() },
+        //         // Lighting (basic)
+        //         uAmbientLightColor: { value: new THREE.Color(0x666666) },
+        //         uDirectionalLightColor: { value: new THREE.Color(0xffffff) },
+        //         uDirectionalLightDirection: { value: this.sunDirection ? this.sunDirection : new THREE.Vector3(0.5, 1, 0.75).normalize() },
 
-                // Blending parameters
-                uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
-                uGrassLevel: { value: 0 },          // Top of grass layer
-                uRockLevel: { value: 80 },          // Top of rock layer (start of snow)
-                uSnowLevel: { value: 120 },         // Full snow
-                uBlendRange: { value: 25.0 },       // How far to blend between texture layers
-                uSlopeThreshold: { value: 0.7 },    // Radians (approx 40 degrees for rock on slopes)
-                uSlopeBlendRange: { value: 0.3 }
-            },
-            vertexShader: `
-                uniform sampler2D uHeightMap;
-                uniform float uMinHeight;
-                uniform float uMaxHeight;
+        //         // Blending parameters
+        //         uSandLevel: { value: this.terrainHeightLimits.min + 10 }, // Top of sand layer
+        //         uGrassLevel: { value: 0 },          // Top of grass layer
+        //         uRockLevel: { value: 80 },          // Top of rock layer (start of snow)
+        //         uSnowLevel: { value: 120 },         // Full snow
+        //         uBlendRange: { value: 25.0 },       // How far to blend between texture layers
+        //         uSlopeThreshold: { value: 0.7 },    // Radians (approx 40 degrees for rock on slopes)
+        //         uSlopeBlendRange: { value: 0.3 }
+        //     },
+        //     vertexShader: _TerrainVS,
+        //     fragmentShader: _TerrainFS,
+        //     extensions: {
+        //         derivatives: true
+        //     }
+        // });
 
-                varying vec2 vUv;
-                varying float vHeight;
-                varying vec3 vWorldPosition;
-                varying vec3 vViewPosition; // For normal calculation if using dFdx/dFdy in fragment shader
+        const terrainMaterialPhong = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+        });
 
-                void main() {
-                    vUv = uv;
-                    float heightSample = texture2D(uHeightMap, uv).r; // 0-1 range
-                    vHeight = uMinHeight + heightSample * (uMaxHeight - uMinHeight);
+        // const terrainMaterialBlended = generateBlendedMaterial([
+        //     { texture: tSand },
+        //     { texture: tGrass, levels: [-80, -35, 20, 50] },
+        //     { texture: tRock, levels: [20, 50, 60, 85] },
+        //     { texture: tSnow, glsl: '1.0 - smoothstep(65.0 + smoothstep(-256.0, 256.0, vPosition.x) * 10.0, 80.0, vPosition.z)' },
+        //     { texture: tRock, glsl: 'slope > 0.7853981633974483 ? 0.2 : 1.0 - smoothstep(0.47123889803846897, 0.7853981633974483, slope) + 0.2' },
+        // ]);
 
-                    vec3 displacedPosition = position + vec3(0.0, vHeight, 0.0);
-                    
-                    vec4 modelViewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
-                    vViewPosition = -modelViewPosition.xyz; // For view direction
-
-                    vec4 worldPosition = modelMatrix * vec4(displacedPosition, 1.0);
-                    vWorldPosition = worldPosition.xyz;
-
-
-                    gl_Position = projectionMatrix * modelViewPosition;
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D uSandTexture;
-                uniform sampler2D uGrassTexture;
-                uniform sampler2D uRockTexture;
-                uniform sampler2D uSnowTexture;
-                uniform vec2 uTextureRepeat;
-
-                uniform vec3 uAmbientLightColor;
-                uniform vec3 uDirectionalLightColor;
-                uniform vec3 uDirectionalLightDirection;
-
-                uniform float uSandLevel;
-                uniform float uGrassLevel;
-                uniform float uRockLevel;
-                uniform float uSnowLevel;
-                uniform float uBlendRange;
-                uniform float uSlopeThreshold;
-                uniform float uSlopeBlendRange;
-
-                varying vec2 vUv;
-                varying float vHeight; // Actual world height
-                varying vec3 vWorldPosition;
-                varying vec3 vViewPosition;
-
-                // --- Simple 2D hash noise function ---
-                float hash(vec2 p) {
-                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-                }
-                float noise(vec2 p) {
-                    vec2 i = floor(p);
-                    vec2 f = fract(p);
-                    float a = hash(i);
-                    float b = hash(i + vec2(1.0, 0.0));
-                    float c = hash(i + vec2(0.0, 1.0));
-                    float d = hash(i + vec2(1.0, 1.0));
-                    vec2 u = f * f * (3.0 - 2.0 * f);
-                    return mix(a, b, u.x) +
-                        (c - a) * u.y * (1.0 - u.x) +
-                        (d - b) * u.x * u.y;
-                }
-
-                // Function to compute normal using derivatives (requires standard derivatives extension)
-                vec3 getNormal() {
-                    return normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
-                }
-
-                void main() {
-                    vec3 normal = getNormal();
-
-                    // Texture blending based on height
-                    vec2 repeatedUv = vUv * uTextureRepeat;
-                    //vec4 sandColor = texture2D(uSandTexture, repeatedUv);
-                    //vec4 grassColor = texture2D(uGrassTexture, repeatedUv);
-                    //vec4 rockColor = texture2D(uRockTexture, repeatedUv);
-                    //vec4 snowColor = texture2D(uSnowTexture, repeatedUv);
-
-                    // Add noise-based UV offset for texture variation
-                    float uvNoise = noise(vUv * 50.0) * 0.5; // Adjust scale and strength as needed
-                    vec2 variedUv = repeatedUv + uvNoise;
-
-                    vec4 sandColor = texture2D(uSandTexture, variedUv);
-                    vec4 grassColor = texture2D(uGrassTexture, variedUv + 0.13); // Offset each layer differently
-                    vec4 rockColor = texture2D(uRockTexture, variedUv + 0.27);
-                    vec4 snowColor = texture2D(uSnowTexture, variedUv + 0.41);
-
-                    float h = vHeight;
-
-                    // --- Add noise to blend transitions ---
-                    float blendNoise = (noise(vUv * 20.0) - 0.5) * uBlendRange * 0.7; // scale noise and strength
-
-                    // Sand/Grass blend
-                    float grassWeight = smoothstep(uSandLevel - uBlendRange + blendNoise, uSandLevel + blendNoise, h) *
-                                        (1.0 - smoothstep(uGrassLevel + blendNoise, uGrassLevel + uBlendRange + blendNoise, h));
-                    grassWeight = clamp(grassWeight, 0.0, 1.0);
-
-                    // Rock layer (height based)
-                    float rockHeightWeight = smoothstep(uGrassLevel - uBlendRange + blendNoise, uGrassLevel + blendNoise, h) *
-                                            (1.0 - smoothstep(uRockLevel + blendNoise, uRockLevel + uBlendRange + blendNoise, h));
-
-                    // Rock layer (slope based)
-                    float slope = acos(clamp(normal.y, 0.0, 1.0));
-                    float rockSlopeWeight = smoothstep(uSlopeThreshold - uSlopeBlendRange, uSlopeThreshold, slope);
-
-                    float totalRockWeight = max(rockHeightWeight, rockSlopeWeight);
-
-                    // Snow layer
-                    float snowWeight = smoothstep(uRockLevel - uBlendRange + blendNoise, uRockLevel + blendNoise, h);
-
-                    // Layered blending: start with a base and mix upwards
-                    vec3 finalColor = sandColor.rgb;
-                    finalColor = mix(finalColor, grassColor.rgb, grassWeight);
-                    finalColor = mix(finalColor, rockColor.rgb, totalRockWeight);
-                    finalColor = mix(finalColor, snowColor.rgb, snowWeight);
-
-                    // Basic lighting
-                    float diffuseStrength = max(0.0, dot(normal, uDirectionalLightDirection));
-                    vec3 diffuse = uDirectionalLightColor * diffuseStrength;
-                    vec3 lighting = uAmbientLightColor + diffuse;
-
-                    gl_FragColor = vec4(finalColor * lighting, 1.0);
-                }
-            `,
-            extensions: {
-                derivatives: true
-            }
+        const terrainMaterial = new TerrainMaterial({
+            textures: [
+                { texture: tSand, levels: [-100, -80, -35, 20] }, // Sand layer
+                { texture: tGrass, levels: [-80, -35, 20, 50] }, // Grass layer
+                { texture: tRock, levels: [20, 50, 60, 85] }, // Rock layer
+                { texture: tSnow, levels: [65, 80, 85, 100] }, // Snow layer
+            ],
+            heightMap: heightMapTexture,
+            heightLimits: this.terrainHeightLimits,
+            baseMaterial: new THREE.MeshPhongMaterial({ color: 0xffffff }),
         });
 
         // Create the terrain mesh
-        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        const groundMesh = new THREE.Mesh(terrainGeometry, terrainMaterialPhong);
         groundMesh.receiveShadow = true;
         groundMesh.castShadow = true;
 
@@ -292,6 +214,18 @@ export default class WorldGenerator {
             mesh: groundMesh,
             rawHeightData: heightDataResult.data // Store for optimised height checks
         };
+
+        // Noise offset for the terrain
+        let pos = groundMesh.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const height = this.getTerrainHeightAt(x, z);
+            pos.setY(i, height); // Set the Y position based on the heightmap
+        }
+        pos.needsUpdate = true; // Notify Three.js that the position attribute has changed
+        // Compute normals for lighting
+        groundMesh.geometry.computeVertexNormals();
     }
 
     setupSpawn() {
