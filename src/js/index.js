@@ -3,15 +3,18 @@ import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import SceneManager from './SceneManager.js';
 import HelicopterController from './HelicopterController.js';
+import EnemyManager from './EnemyManager.js';
 
 // Main debugging
-const orbitCameraOverride = true; // Set to true to use OrbitControls for debugging
+const orbitCameraOverride = false; // Set to true to use OrbitControls for debugging
 
 // Global variables
 let sceneManager;
 let helicopterController;
+let enemyManager;
 let clock;
 let statsInstance;
+let spawnCounter;
 
 // Init
 function init() {
@@ -41,6 +44,8 @@ function init() {
     }
 
     // Set up Weapon and Enemy AI systems (TODO)
+    enemyManager = new EnemyManager(sceneManager.getScene(), sceneManager.getWorldGenerator());
+    spawnCounter = 3000;
 
     // Initiate the clock and start animation loop
     clock = new Clock();
@@ -58,6 +63,19 @@ function animate() {
         sceneManager.update();
         if (!orbitCameraOverride) { helicopterController.update(deltaTime); }
         statsInstance.update();
+        if (spawnCounter <= 0) {
+            // Spawn a new enemy
+            enemyManager.spawnEnemy();
+            spawnCounter = 3000; // Reset counter
+        } else {
+            spawnCounter--;
+        }
+        enemyManager.updateEnemies(
+            deltaTime,
+            helicopterController.getPosition(),
+            helicopterController.getDirection(),
+            // helicopterController.getVelocity()
+        );
     } catch (error) {
         console.error("Error during animation loop:", error);
         cancelAnimationFrame(rafID);

@@ -276,4 +276,21 @@ export default class HelicopterController {
         // Assuming mass is incorporated in force strength or is 1 (F = ma -> a = F/m)
         this.acceleration.addScaledVector(forceVector, 1 / HELICOPTER_MASS);
     }
+
+    // Should make a separate class for Player so that I can pass this and have the other get functions
+
+    getPosition() {
+        // Return the current position of the helicopter
+        return this.camera.position.clone();
+    }
+
+    getDirection() {
+        // Return the current orientation of the helicopter
+        return this.camera.quaternion.clone();
+    }
+
+    getVelocity() {
+        // Return the current velocity of the helicopter
+        return this.velocity.clone();
+    }
 }

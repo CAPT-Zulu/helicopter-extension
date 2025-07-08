@@ -227,7 +227,7 @@ class TerrainMaterial {
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <map_fragment>',
                 `
-                vec4 tex0 = texture2D(tex0, vUvCustom * 8.0);
+                vec4 tex0 = texture2D(tex0, vUvCustom * 100.0);
                 vec4 blended = tex0;
                 ${textures.slice(1).map((tex, i) => {
                     const idx = i + 1;
@@ -239,7 +239,7 @@ class TerrainMaterial {
                     // }
 
                     return `
-                        vec4 tex${idx} = texture2D(tex${idx}, vUvCustom * 8.0);
+                        vec4 tex${idx} = texture2D(tex${idx}, vUvCustom * 100.0);
                         float blend${idx} = clamp(${blendExpr}, 0.0, 1.0);
                         blended = mix(blended, tex${idx}, blend${idx});
                     `;
