@@ -1,5 +1,6 @@
 # Helicopter Extension
 A Chrome extension with a Three.js helicopter flight simulator popup.
+Built with Bun, Vite and THREE.js.
 
 ## Setup
 To install dependencies:
@@ -15,8 +16,8 @@ bun run build
 ```
 
 ## TODO:
-- Implement basic npc scatter spawn and spawn over time
-- Give npc basic ability to move around
+- Move basic npc to own file
+- Alter npc movement to be locked to ground/terrain
 - Give npc aiming support with predictions
 - Give npc ability to shoot
 - Implement health bar, health and bullet collision detection
