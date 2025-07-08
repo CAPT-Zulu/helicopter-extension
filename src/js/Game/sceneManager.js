@@ -1,7 +1,8 @@
-import { Scene, Color, WebGLRenderer, PerspectiveCamera, ACESFilmicToneMapping } from 'three';
-import WorldGenerator from './WorldGenerator';
+// General imports
+import { Scene, Color, WebGLRenderer, PerspectiveCamera, PCFSoftShadowMap } from 'three';
 
-export default class SceneManager {
+// SceneManager class
+export default class sceneManager {
     constructor(canvas) {
         // Set canvas and get its dimensions
         this.canvas = canvas;
@@ -10,18 +11,16 @@ export default class SceneManager {
             height: this.canvas.clientHeight
         };
 
-        // Build scene, camera, renderer, and world
+        // Build scene, camera, and renderer
         this.scene = this.buildScene();
         this.renderer = this.buildRenderer(this.screenDimensions);
         this.camera = this.buildCamera(this.screenDimensions);
-        this.worldGenerator = new WorldGenerator(this.scene);
 
         // Set up resize observer to handle window resizing
         this.resizeObserver = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-                    this.onWindowResize(entry.contentRect.width, entry.contentRect.height);
-                }
+            const entry = entries[0];
+            if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            this.onWindowResize(entry.contentRect.width, entry.contentRect.height);
             }
         });
         this.resizeObserver.observe(document.body);
@@ -37,12 +36,12 @@ export default class SceneManager {
     buildRenderer({ width, height }) {
         // Create a WebGL renderer
         const renderer = new WebGLRenderer({
-            canvas: this.canvas,
-            antialias: false // Temp fix
+            canvas: this.canvas
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
-        renderer.shadowMap.enabled = false;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = PCFSoftShadowMap;
         return renderer;
     }
 
@@ -56,16 +55,6 @@ export default class SceneManager {
         return camera;
     }
 
-    getCamera() {
-        // Return the camera object
-        return this.camera;
-    }
-
-    getScene() {
-        // Return the scene object
-        return this.scene;
-    }
-
     getGroundYPosition() {
         // Return the Y position of the ground
         if (this.worldGenerator) {
@@ -74,11 +63,7 @@ export default class SceneManager {
         return 0;
     }
 
-    getWorldGenerator() {
-        return this.worldGenerator;
-    }
-
-    update() {
+    render() {
         // Render the scene for the current frame
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
