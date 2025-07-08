@@ -7,9 +7,10 @@ export default class BaseEnemy {
         // Local variables
         this.state = 'idle'; // 'patrolling', 'attacking', etc.
         this.currentPosition = position.clone();
-        this.targetPosition = new Vector3(0, 0, 0);
+        this.objectivePosition = new Vector3(0, 0, 0);
 
         // this.player // to be used for targeting etc or maybe I could make them also able to attack friendly units?
+        this.target = null;
 
         // Enemy properties
         // this.health = 100;
@@ -21,12 +22,16 @@ export default class BaseEnemy {
 
         // Default mesh for the enemy
         this.mesh = new Mesh(
-            new BoxGeometry(5, 5, 5),
+            new BoxGeometry(2.5, 2.5, 2.5),
             new MeshBasicMaterial({ color: 0xff0000 })
         );
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
         this.mesh.position.copy(this.currentPosition);
+    }
+
+    setTarget(target) {
+        this.target = target;
     }
 
     update(deltaTime) {
@@ -47,13 +52,13 @@ export default class BaseEnemy {
 
     onIdle(deltaTime) {
         // Pick a new patrol point nearby
-        this.targetPosition = this.getRandomNearbyPoint(100);
+        this.objectivePosition = this.getRandomNearbyPoint(100);
         this.state = 'patrolling';
     }
 
     onPatrol(deltaTime) {
         this.move(deltaTime);
-        if (this.currentPosition.distanceTo(this.targetPosition) < 1) {
+        if (this.currentPosition.distanceTo(this.objectivePosition) < 1) {
             this.state = 'idle'; // Patrol again
         
         }
@@ -64,7 +69,7 @@ export default class BaseEnemy {
 
     move(deltaTime) {
         // Default movement: move towards target
-        const direction = new Vector3().subVectors(this.targetPosition, this.currentPosition).normalize();
+        const direction = new Vector3().subVectors(this.objectivePosition, this.currentPosition).normalize();
         this.currentPosition.addScaledVector(direction, this.speed * deltaTime);
         this.clampToBounds();
         this.mesh.position.copy(this.currentPosition);

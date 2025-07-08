@@ -69,6 +69,7 @@ export default class EnemyManager {
         const enemy = new GroundEnemy(spawnPosition, this.world);
         enemy.mesh.position.set(spawnPosition.x, spawnPosition.y + enemy.offset, spawnPosition.z);
         this.addEnemy(enemy);
+        enemy.setTarget(this.player); // Set the player as the target for the enemy
         console.log(`Spawned enemy at position: ${spawnPosition.x}, ${spawnPosition.y}, ${spawnPosition.z}`);
     }
 }
