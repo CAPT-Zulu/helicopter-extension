@@ -62,16 +62,6 @@ export default class sceneManager {
         return camera;
     }
 
-    getCamera() {
-        // Return the camera object
-        return this.camera;
-    }
-
-    getScene() {
-        // Return the scene object
-        return this.scene;
-    }
-
     getGroundYPosition() {
         // Return the Y position of the ground
         if (this.worldGenerator) {

@@ -21,8 +21,8 @@ export default class GameManager {
         // this.uiManager = new UIManager();
 
         // Core components
-        this.scene = this.sceneManager.getScene();
-        this.camera = this.sceneManager.getCamera();
+        this.scene = this.sceneManager.scene;
+        this.camera = this.sceneManager.camera;
 
         // World generation
         this.world = new TerrainWorld(this.scene);
