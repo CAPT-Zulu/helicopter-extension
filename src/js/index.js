@@ -1,9 +1,9 @@
 import { Clock } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import Stats from 'three/addons/libs/stats.module.js';
-import SceneManager from './SceneManager.js';
-import HelicopterController from './HelicopterController.js';
-import EnemyManager from './EnemyManager.js';
+import SceneManager from './Managers/SceneManager.js';
+import HelicopterController from './Player/HelicopterController.js';
+import EnemyManager from './Managers/EnemyManager.js';
 
 // Main debugging
 const orbitCameraOverride = false; // Set to true to use OrbitControls for debugging

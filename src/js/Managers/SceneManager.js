@@ -1,5 +1,5 @@
 import { Scene, Color, WebGLRenderer, PerspectiveCamera, PCFSoftShadowMap } from 'three';
-import WorldGenerator from './WorldGenerator';
+import WorldGenerator from '../World/WorldGenerator';
 
 export default class SceneManager {
     constructor(canvas) {

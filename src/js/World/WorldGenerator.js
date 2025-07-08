@@ -3,9 +3,9 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { Octree } from 'three/addons/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
-import NoiseGenerator from './NoiseGenerator.js';
+import NoiseGenerator from '../Util/NoiseGenerator.js';
 import alea from 'alea';
-import { TerrainMaterial } from './Shaders.js';
+import { TerrainMaterial } from '../Util/Shaders.js';
 
 export default class WorldGenerator {
     constructor(scene) {
