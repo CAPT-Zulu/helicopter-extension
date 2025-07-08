@@ -2,12 +2,14 @@
 import { Vector3, Mesh, BoxGeometry, MeshBasicMaterial} from 'three';
 // BaseEnemy class
 import BaseEnemy from './BaseEnemy';
+// BaseProjectile class
+import BaseProjectile from '../Projectiles/BaseProjectile';
 
 // GroundEnemy class
 export class GroundEnemy extends BaseEnemy {
-    constructor(position, world) {
+    constructor(position, world, scene) {
         // Extend BaseEnemy
-        super(position, world);
+        super(position, world, scene);
 
         // Test changing color
         this.mesh.material.color.set(0x00ff00);
@@ -44,6 +46,19 @@ export class GroundEnemy extends BaseEnemy {
         if (this.target) {
             // Rotate the barrel to face the target
             this.barrel.lookAt(this.target.getPosition());
+            // Fire a projectile towards the target
+            // if (this.attackTimer <= 0) {
+            //     // Create a projectile towards the target
+            //     const barrelPosition = this.mesh.position.clone().add(this.barrel.position);
+            //     const direction = new Vector3().subVectors(this.target.getPosition(), barrelPosition).normalize();
+            //     const projectile = new BaseProjectile(barrelPosition, direction);
+            //     // Add projectile to the scene or manager
+            //     this.scene.add(projectile.mesh);
+            //     this.projectiles.push(projectile);
+            //     this.attackTimer = this.attackDelay;
+            // } else {
+            //     this.attackTimer -= 1 / 1000;
+            // }
         }
     }
 }

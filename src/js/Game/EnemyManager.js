@@ -18,18 +18,18 @@ export default class EnemyManager {
     }
 
     addEnemy(enemy) {
-        // Add enemy to the list and scene, and increment the count
+        // Add enemy to the list and spawn, and increment the count
         this.enemies.push(enemy);
-        this.scene.add(enemy.mesh);
+        enemy.spawn();
         this.enemyCount++;
     }
 
     removeEnemy(enemy) {
-        // Remove enemy from the list and scene, and decrement the count
+        // Remove enemy from the list and destroy, and decrement the count
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
-            this.scene.remove(enemy.mesh);
+            enemy.destroy();
             this.enemyCount--;
         }
     }
@@ -66,7 +66,7 @@ export default class EnemyManager {
     spawnEnemy() {
         // Create a basic ground enemy for now at a random position
         const spawnPosition = this.getRandomSpawnPosition();
-        const enemy = new GroundEnemy(spawnPosition, this.world);
+        const enemy = new GroundEnemy(spawnPosition, this.world, this.scene);
         enemy.mesh.position.set(spawnPosition.x, spawnPosition.y + enemy.offset, spawnPosition.z);
         this.addEnemy(enemy);
         enemy.setTarget(this.player); // Set the player as the target for the enemy

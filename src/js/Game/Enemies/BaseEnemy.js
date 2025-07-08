@@ -3,7 +3,7 @@ import { Mesh, BoxGeometry, MeshBasicMaterial, Vector3 } from 'three';
 
 // BaseEnemy class
 export default class BaseEnemy {
-    constructor(position, world) {
+    constructor(position, world, scene) {
         // Local variables
         this.state = 'idle'; // 'patrolling', 'attacking', etc.
         this.currentPosition = position.clone();
@@ -17,7 +17,11 @@ export default class BaseEnemy {
         // this.damage = 10;
         this.speed = 15;
         this.offset = 2.5;
+        this.attackDelay = 0.3; 
+        this.attackTimer = 0;
+        this.projectiles = [];
         this.world = world;
+        this.scene = scene; 
         this.worldBounds = this.world.getBounds();
 
         // Default mesh for the enemy
@@ -35,6 +39,7 @@ export default class BaseEnemy {
     }
 
     update(deltaTime) {
+        // Update the state machine
         switch (this.state) {
             case 'idle':
                 this.onIdle(deltaTime);
@@ -47,6 +52,16 @@ export default class BaseEnemy {
                 break;
             default:
                 console.warn('Unknown state:', this.state);
+        }
+        // Update projectile, if any
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const projectile = this.projectiles[i];
+            if (projectile.active) {
+                projectile.update(deltaTime);
+            } else {
+                // Remove inactive projectiles
+                this.projectiles.splice(i, 1);
+            }
         }
     }
 
@@ -106,6 +121,27 @@ export default class BaseEnemy {
             this.currentPosition.x = Math.max(this.worldBounds.minX, Math.min(this.worldBounds.maxX, this.currentPosition.x));
             this.currentPosition.y = Math.max(this.worldBounds.minY, Math.min(this.worldBounds.maxY, this.currentPosition.y));
             this.currentPosition.z = Math.max(this.worldBounds.minZ, Math.min(this.worldBounds.maxZ, this.currentPosition.z));
+        }
+    }
+
+    spawn() {
+        // Add the enemy mesh to the scene
+        if (this.scene) {
+            this.scene.add(this.mesh);
+        }
+    }
+
+    destroy() {
+        // Remove the enemy mesh from the scene
+        if (this.scene && this.mesh.parent) {
+            this.scene.remove(this.mesh);
+        }
+        // Dispose of the mesh geometry and material
+        if (this.mesh.geometry) {
+            this.mesh.geometry.dispose();
+        }
+        if (this.mesh.material) {
+            this.mesh.material.dispose();
         }
     }
 }
