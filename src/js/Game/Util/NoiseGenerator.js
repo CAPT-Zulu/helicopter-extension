@@ -1,5 +1,7 @@
+// General imports
 import { createNoise2D } from 'simplex-noise';
 
+// NoiseGenerator class
 export default class NoiseGenerator {
     constructor(seed) {
         // Create a 2D simplex noise instance with the seed

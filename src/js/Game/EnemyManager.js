@@ -1,17 +1,19 @@
-import * as THREE from 'three';
+// General imports
+import { Mesh, BoxGeometry, MeshBasicMaterial, Vector3 } from 'three';
 
+// EnemyManager class
 export default class EnemyManager {
-    constructor(scene, worldGenerator) {
+    constructor(scene, world) {
         this.scene = scene;
-        this.worldGenerator = worldGenerator;
+        this.world = world;
         this.enemies = [];
         this.enemyCount = 0;
     }
 
     exampleEnemy() {
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(5, 5, 5),
-            new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        const body = new Mesh(
+            new BoxGeometry(5, 5, 5),
+            new MeshBasicMaterial({ color: 0xff0000 })
         );
         body.castShadow = true;
         body.receiveShadow = true;
@@ -20,7 +22,7 @@ export default class EnemyManager {
             offset: 2.5,
             update: (deltaTime, playerPosition, playerDirection) => {
                 // Example update logic for the enemy
-                const direction = new THREE.Vector3().subVectors(playerPosition, body.position).normalize();
+                const direction = new Vector3().subVectors(playerPosition, body.position).normalize();
                 body.position.addScaledVector(direction, deltaTime * 30); // Move towards player
                 body.lookAt(playerPosition); // Face the player
             }
@@ -54,11 +56,11 @@ export default class EnemyManager {
     }
 
     getRandomSpawnPosition() {
-        // User Math.random() and this.worldGenerator.getWorldBounds()
-        const rand_x = Math.random() * (this.worldGenerator.getWorldBounds().maxX - this.worldGenerator.getWorldBounds().minX) + this.worldGenerator.getWorldBounds().minX;
-        const rand_z = Math.random() * (this.worldGenerator.getWorldBounds().maxZ - this.worldGenerator.getWorldBounds().minZ) + this.worldGenerator.getWorldBounds().minZ;
-        const terrain_y = this.worldGenerator.getTerrainHeightAt(rand_x, rand_z);
-        return new THREE.Vector3(rand_x, terrain_y, rand_z);
+        // User Math.random() and this.world.getBounds()
+        const rand_x = Math.random() * (this.world.getBounds().maxX - this.world.getBounds().minX) + this.world.getBounds().minX;
+        const rand_z = Math.random() * (this.world.getBounds().maxZ - this.world.getBounds().minZ) + this.world.getBounds().minZ;
+        const terrain_y = this.world.getTerrainHeightAt(rand_x, rand_z);
+        return new Vector3(rand_x, terrain_y, rand_z);
     }
 
     spawnEnemy() {

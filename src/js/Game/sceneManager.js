@@ -1,7 +1,8 @@
+// General imports
 import { Scene, Color, WebGLRenderer, PerspectiveCamera, PCFSoftShadowMap } from 'three';
-import WorldGenerator from '../World/WorldGenerator';
 
-export default class SceneManager {
+// SceneManager class
+export default class sceneManager {
     constructor(canvas) {
         // Set canvas and get its dimensions
         this.canvas = canvas;
@@ -10,11 +11,10 @@ export default class SceneManager {
             height: this.canvas.clientHeight
         };
 
-        // Build scene, camera, renderer, and world
+        // Build scene, camera, and renderer
         this.scene = this.buildScene();
         this.renderer = this.buildRenderer(this.screenDimensions);
         this.camera = this.buildCamera(this.screenDimensions);
-        this.worldGenerator = new WorldGenerator(this.scene);
 
         // Set up resize observer to handle window resizing
         this.resizeObserver = new ResizeObserver(entries => {
@@ -25,6 +25,12 @@ export default class SceneManager {
             }
         });
         this.resizeObserver.observe(document.body);
+
+
+        ///// Double check if this is correct //////
+        // canvas.addEventListener('resize', () => {
+        //     this.onWindowResize(this.canvas.clientWidth, this.canvas.clientHeight);
+        // });
     }
 
     buildScene() {
@@ -37,8 +43,7 @@ export default class SceneManager {
     buildRenderer({ width, height }) {
         // Create a WebGL renderer
         const renderer = new WebGLRenderer({
-            canvas: this.canvas,
-            antialias: false // Temp fix
+            canvas: this.canvas
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
@@ -75,11 +80,7 @@ export default class SceneManager {
         return 0;
     }
 
-    getWorldGenerator() {
-        return this.worldGenerator;
-    }
-
-    update() {
+    render() {
         // Render the scene for the current frame
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
