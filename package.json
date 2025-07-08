@@ -1,25 +1,21 @@
 {
   "name": "helicopter-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "devDependencies": {
-    "@types/bun": "latest",
     "@types/chrome": "^0.0.323",
     "@types/three": "^0.176.0",
-    "cpy-cli": "^5.0.0",
-    "rimraf": "^6.0.1"
+    "vite": "^7.0.2",
+    "vite-plugin-static-copy": "^3.1.0"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
   },
-  "private": true,
-  "scripts": {
-    "dev": "bun run build --watch",
-    "build": "bun run clean && bun run build:js && bun run copy:assets",
-    "build:js": "bun build ./src/js/index.js --outdir ./dist/js --minify --target=browser && bun build ./src/js/background.js --outdir ./dist/js --minify --target=browser",
-    "copy:assets": "cpy --cwd=src index.html index.css manifest.json ../../dist && cpy ./src/icons/* ./dist/icons --flat && cpy ./src/textures/* ./dist/textures --flat",
-    "clean": "rimraf ./dist",
-    "package": "bun run build && cd dist && zip -r ../helicopter-extension.zip . -x \"*.DS_Store\" && cd .."
-  },
-  "type": "module",
   "dependencies": {
     "alea": "^1.0.1",
     "simplex-noise": "^4.0.3",
