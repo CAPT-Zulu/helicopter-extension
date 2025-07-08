@@ -18,19 +18,12 @@ export default class sceneManager {
 
         // Set up resize observer to handle window resizing
         this.resizeObserver = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-                    this.onWindowResize(entry.contentRect.width, entry.contentRect.height);
-                }
+            const entry = entries[0];
+            if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            this.onWindowResize(entry.contentRect.width, entry.contentRect.height);
             }
         });
         this.resizeObserver.observe(document.body);
-
-
-        ///// Double check if this is correct //////
-        // canvas.addEventListener('resize', () => {
-        //     this.onWindowResize(this.canvas.clientWidth, this.canvas.clientHeight);
-        // });
     }
 
     buildScene() {
