@@ -183,4 +183,15 @@ export default class HelicopterController {
         // Assuming mass is incorporated in force strength or is 1 (F = ma -> a = F/m)
         this.acceleration.addScaledVector(forceVector, 1 / HELICOPTER_MASS);
     }
+
+    getPosition() {
+        // Return the current position of the helicopter
+        return this.camera.position.clone();
+    }
+
+    getDirection() {
+        // Return the forward direction of the helicopter
+        const forward = new Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        return forward.normalize();
+    }
 }

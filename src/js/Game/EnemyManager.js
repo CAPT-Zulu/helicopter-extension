@@ -3,11 +3,13 @@ import { Mesh, BoxGeometry, MeshBasicMaterial, Vector3 } from 'three';
 
 // EnemyManager class
 export default class EnemyManager {
-    constructor(scene, world) {
+    constructor(scene, world, player) {
         this.scene = scene;
         this.world = world;
+        this.player = player;
         this.enemies = [];
         this.enemyCount = 0;
+        this.spawnDelay = 4000; // 4 seconds
     }
 
     exampleEnemy() {
@@ -45,9 +47,25 @@ export default class EnemyManager {
         }
     }
 
-    updateEnemies(deltaTime, playerPosition, playerDirection) { // , playerDirection, playerVelocity
+    updateEnemies(deltaTime) {
+        const playerPosition = this.player.getPosition();
+        const playerDirection = this.player.getDirection();
         for (const enemy of this.enemies) {
-            enemy.update(deltaTime, playerPosition, playerDirection); // , playerDirection, playerVelocity
+            enemy.update(deltaTime, playerPosition, playerDirection); 
+        }
+    }
+
+    update(deltaTime) {
+        // Update all enemies
+        this.updateEnemies(deltaTime);
+        // Check if it's time to spawn a new enemy
+        if (this.enemyCount < 10) { // Limit to 10 enemies
+            if (this.spawnDelay <= 0) {
+                this.spawnEnemy();
+                this.spawnDelay = 4000; // Reset spawn delay
+            } else {
+                this.spawnDelay -= deltaTime * 1000; // Convert deltaTime to milliseconds
+            }
         }
     }
 

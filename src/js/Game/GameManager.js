@@ -29,7 +29,7 @@ export default class GameManager {
 
         // Game entities
         this.player = new Player(this.camera, this.world, this.inputManager, HelicopterController);
-        this.enemyManager = new EnemyManager(this.scene, this.world);
+        this.enemyManager = new EnemyManager(this.scene, this.world, this.player);
 
         // Game state
         this.clock = new Clock();
@@ -41,7 +41,7 @@ export default class GameManager {
 
         // Update game systems
         this.player.update(deltaTime);
-        // this.enemyManager.update(deltaTime, this.player);
+        this.enemyManager.update(deltaTime);
         // this.uiManager.update(this);
 
         // Render the scene
