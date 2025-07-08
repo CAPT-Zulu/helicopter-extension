@@ -1,44 +1,31 @@
 // General imports
-import { Mesh, BoxGeometry, MeshBasicMaterial, Vector3 } from 'three';
+import { Vector3 } from 'three';
+// Enemy types
+import { GroundEnemy } from './Enemies/GroundEnemy';
 
 // EnemyManager class
 export default class EnemyManager {
     constructor(scene, world, player) {
+        // Initialize properties
         this.scene = scene;
         this.world = world;
         this.player = player;
+
+        // Local variables
         this.enemies = [];
         this.enemyCount = 0;
         this.spawnDelay = 4000; // 4 seconds
     }
 
-    exampleEnemy() {
-        const body = new Mesh(
-            new BoxGeometry(5, 5, 5),
-            new MeshBasicMaterial({ color: 0xff0000 })
-        );
-        body.castShadow = true;
-        body.receiveShadow = true;
-        const enemy = {
-            mesh: body,
-            offset: 2.5,
-            update: (deltaTime, playerPosition, playerDirection) => {
-                // Example update logic for the enemy
-                const direction = new Vector3().subVectors(playerPosition, body.position).normalize();
-                body.position.addScaledVector(direction, deltaTime * 30); // Move towards player
-                body.lookAt(playerPosition); // Face the player
-            }
-        };
-        return enemy;
-    }
-
     addEnemy(enemy) {
+        // Add enemy to the list and scene, and increment the count
         this.enemies.push(enemy);
         this.scene.add(enemy.mesh);
         this.enemyCount++;
     }
 
     removeEnemy(enemy) {
+        // Remove enemy from the list and scene, and decrement the count
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
@@ -48,10 +35,9 @@ export default class EnemyManager {
     }
 
     updateEnemies(deltaTime) {
-        const playerPosition = this.player.getPosition();
-        const playerDirection = this.player.getDirection();
+        // Update all enemies' state machines
         for (const enemy of this.enemies) {
-            enemy.update(deltaTime, playerPosition, playerDirection); 
+            enemy.update(deltaTime); 
         }
     }
 
@@ -69,10 +55,6 @@ export default class EnemyManager {
         }
     }
 
-    getEnemyCount() {
-        return this.enemyCount;
-    }
-
     getRandomSpawnPosition() {
         // User Math.random() and this.world.getBounds()
         const rand_x = Math.random() * (this.world.getBounds().maxX - this.world.getBounds().minX) + this.world.getBounds().minX;
@@ -82,8 +64,9 @@ export default class EnemyManager {
     }
 
     spawnEnemy() {
-        const enemy = this.exampleEnemy();
+        // Create a basic ground enemy for now at a random position
         const spawnPosition = this.getRandomSpawnPosition();
+        const enemy = new GroundEnemy(spawnPosition, this.world);
         enemy.mesh.position.set(spawnPosition.x, spawnPosition.y + enemy.offset, spawnPosition.z);
         this.addEnemy(enemy);
         console.log(`Spawned enemy at position: ${spawnPosition.x}, ${spawnPosition.y}, ${spawnPosition.z}`);
